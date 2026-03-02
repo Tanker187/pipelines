@@ -64,12 +64,13 @@ jobs:
     steps:
       - name: Check and reset label
         run: |
-          if [[ "${{ needs.fetch_data.outputs.event_action }}" == "synchronize" || "${{ needs.fetch_data.outputs.event_action }}" == "reopened" ]]; then
-            echo "Resetting 'ci-passed' label as changes were pushed (event: ${{ needs.fetch_data.outputs.event_action }})."
+          if [[ "$EVENT_ACTION" == "synchronize" || "$EVENT_ACTION" == "reopened" ]]; then
+            echo "Resetting 'ci-passed' label as changes were pushed (event: $EVENT_ACTION)."
             gh pr edit ${{ needs.fetch_data.outputs.pr_number }} --remove-label "ci-passed" --repo "$GITHUB_REPOSITORY" || echo "Label not present"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_ACTION: ${{ needs.fetch_data.outputs.event_action }}
 
   add_ci_passed_label:
     name: Add 'ci-passed' label
