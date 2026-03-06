@@ -323,7 +323,7 @@ class Client:
         return config
 
     def _is_inverse_proxy_host(self, host: str) -> bool:
-        return bool(re.match(r'\S+.googleusercontent.com/{0,1}$', host))
+        return bool(re.match(r'\S+\.googleusercontent\.com/{0,1}$', host))
 
     def _get_url_prefix(self) -> str:
         if self._uihost:
