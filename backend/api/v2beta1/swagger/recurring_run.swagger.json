@@ -34,7 +34,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/googlerpcStatus"
+              "$ref": "#/definitions/googleRpcStatus"
             }
           }
         },
@@ -100,7 +100,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/googlerpcStatus"
+              "$ref": "#/definitions/googleRpcStatus"
             }
           }
         },
@@ -113,6 +113,13 @@
             "schema": {
               "$ref": "#/definitions/v2beta1RecurringRun"
             }
+          },
+          {
+            "name": "namespace",
+            "description": "Optional input field. Namespace for the recurring run. Ignored when\nrecurring_run.namespace is set.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -134,7 +141,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/googlerpcStatus"
+              "$ref": "#/definitions/googleRpcStatus"
             }
           }
         },
@@ -165,7 +172,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/googlerpcStatus"
+              "$ref": "#/definitions/googleRpcStatus"
             }
           }
         },
@@ -212,7 +219,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/googlerpcStatus"
+              "$ref": "#/definitions/googleRpcStatus"
             }
           }
         },
@@ -245,7 +252,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/googlerpcStatus"
+              "$ref": "#/definitions/googleRpcStatus"
             }
           }
         },
@@ -275,7 +282,7 @@
       "default": "MODE_UNSPECIFIED",
       "description": "Required input.\nUser setting to enable or disable the recurring run.\nOnly used for creation of recurring runs. Later updates use enable/disable API.\n\n - DISABLE: The recurring run won't schedule any run if disabled."
     },
-    "googlerpcStatus": {
+    "googleRpcStatus": {
       "type": "object",
       "properties": {
         "code": {
@@ -465,7 +472,7 @@
           "$ref": "#/definitions/v2beta1RecurringRunStatus"
         },
         "error": {
-          "$ref": "#/definitions/googlerpcStatus",
+          "$ref": "#/definitions/googleRpcStatus",
           "description": "In case any error happens retrieving a recurring run field, only recurring run ID\nand the error message is returned. Client has the flexibility of choosing\nhow to handle the error. This is especially useful during listing call."
         },
         "no_catchup": {
@@ -474,12 +481,18 @@
         },
         "namespace": {
           "type": "string",
-          "description": "TODO (gkclat): consider removing this field if it can be obtained from the parent experiment.\nOutput only. Namespace this recurring run belongs to. Derived from the parent experiment.",
-          "readOnly": true
+          "description": "TODO (gkclat): consider removing this field if it can be obtained from the parent experiment.\nOptional input field. Namespace this recurring run belongs to. Derived\nfrom the parent experiment when experiment_id is set."
         },
         "experiment_id": {
           "type": "string",
           "description": "ID of the parent experiment this recurring run belongs to."
+        },
+        "plugins_input": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
+          "description": "Optional input. Plugin inputs to propagate to each triggered run.\nEach triggered run will inherit these values in its plugins_input field."
         }
       }
     },

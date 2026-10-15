@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { GoogleRpcStatus } from './GoogleRpcStatus';
+import {
+  GoogleRpcStatusFromJSON,
+  GoogleRpcStatusFromJSONTyped,
+  GoogleRpcStatusToJSON,
+  GoogleRpcStatusToJSONTyped,
+} from './GoogleRpcStatus';
 import type { V2beta1PipelineVersionReference } from './V2beta1PipelineVersionReference';
 import {
   V2beta1PipelineVersionReferenceFromJSON,
@@ -34,13 +41,6 @@ import {
   V2beta1RuntimeConfigToJSON,
   V2beta1RuntimeConfigToJSONTyped,
 } from './V2beta1RuntimeConfig';
-import type { GooglerpcStatus } from './GooglerpcStatus';
-import {
-  GooglerpcStatusFromJSON,
-  GooglerpcStatusFromJSONTyped,
-  GooglerpcStatusToJSON,
-  GooglerpcStatusToJSONTyped,
-} from './GooglerpcStatus';
 import type { RecurringRunMode } from './RecurringRunMode';
 import {
   RecurringRunModeFromJSON,
@@ -149,10 +149,10 @@ export interface V2beta1RecurringRun {
   status?: V2beta1RecurringRunStatus;
   /**
    *
-   * @type {GooglerpcStatus}
+   * @type {GoogleRpcStatus}
    * @memberof V2beta1RecurringRun
    */
-  error?: GooglerpcStatus;
+  error?: GoogleRpcStatus;
   /**
    * Optional input field. Whether the recurring run should catch up if behind schedule.
    * If true, the recurring run will only schedule the latest interval if behind schedule.
@@ -163,17 +163,25 @@ export interface V2beta1RecurringRun {
   no_catchup?: boolean;
   /**
    * TODO (gkclat): consider removing this field if it can be obtained from the parent experiment.
-   * Output only. Namespace this recurring run belongs to. Derived from the parent experiment.
+   * Optional input field. Namespace this recurring run belongs to. Derived
+   * from the parent experiment when experiment_id is set.
    * @type {string}
    * @memberof V2beta1RecurringRun
    */
-  readonly namespace?: string;
+  namespace?: string;
   /**
    * ID of the parent experiment this recurring run belongs to.
    * @type {string}
    * @memberof V2beta1RecurringRun
    */
   experiment_id?: string;
+  /**
+   * Optional input. Plugin inputs to propagate to each triggered run.
+   * Each triggered run will inherit these values in its plugins_input field.
+   * @type {{ [key: string]: object; }}
+   * @memberof V2beta1RecurringRun
+   */
+  plugins_input?: { [key: string]: object };
 }
 
 /**
@@ -216,10 +224,11 @@ export function V2beta1RecurringRunFromJSONTyped(
     created_at: json['created_at'] == null ? undefined : new Date(json['created_at']),
     updated_at: json['updated_at'] == null ? undefined : new Date(json['updated_at']),
     status: json['status'] == null ? undefined : V2beta1RecurringRunStatusFromJSON(json['status']),
-    error: json['error'] == null ? undefined : GooglerpcStatusFromJSON(json['error']),
+    error: json['error'] == null ? undefined : GoogleRpcStatusFromJSON(json['error']),
     no_catchup: json['no_catchup'] == null ? undefined : json['no_catchup'],
     namespace: json['namespace'] == null ? undefined : json['namespace'],
     experiment_id: json['experiment_id'] == null ? undefined : json['experiment_id'],
+    plugins_input: json['plugins_input'] == null ? undefined : json['plugins_input'],
   };
 }
 
@@ -228,7 +237,7 @@ export function V2beta1RecurringRunToJSON(json: any): V2beta1RecurringRun {
 }
 
 export function V2beta1RecurringRunToJSONTyped(
-  value?: Omit<V2beta1RecurringRun, 'namespace'> | null,
+  value?: V2beta1RecurringRun | null,
   ignoreDiscriminator: boolean = false,
 ): any {
   if (value == null) {
@@ -254,8 +263,10 @@ export function V2beta1RecurringRunToJSONTyped(
     updated_at:
       value['updated_at'] == null ? value['updated_at'] : value['updated_at'].toISOString(),
     status: V2beta1RecurringRunStatusToJSON(value['status']),
-    error: GooglerpcStatusToJSON(value['error']),
+    error: GoogleRpcStatusToJSON(value['error']),
     no_catchup: value['no_catchup'],
+    namespace: value['namespace'],
     experiment_id: value['experiment_id'],
+    plugins_input: value['plugins_input'],
   };
 }

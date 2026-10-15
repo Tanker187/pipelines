@@ -158,7 +158,7 @@ func LoadSamples(resourceManager *resource.ResourceManager, sampleConfigPath str
 		if configErr != nil {
 			return fmt.Errorf("failed to load sample %s. Error: %v", cfg.Name, configErr)
 		}
-		pipelineFile, configErr := server.ReadPipelineFile(cfg.File, reader, common.MaxFileLength)
+		pipelineFile, configErr := server.ReadPipelineFileWithConfiguredLimits(cfg.File, reader)
 		if configErr != nil {
 			return fmt.Errorf("failed to load sample %s. Error: %v", cfg.Name, configErr)
 		}
@@ -169,7 +169,8 @@ func LoadSamples(resourceManager *resource.ResourceManager, sampleConfigPath str
 		}
 
 		// Create pipeline if it does not already exist
-		p, fetchErr := resourceManager.GetPipelineByNameAndNamespace(cfg.Name, common.GetPodNamespace())
+		namespace := resourceManager.ReplaceNamespace(common.GetPodNamespace())
+		p, fetchErr := resourceManager.GetPipelineByNameAndNamespace(cfg.Name, namespace)
 		if fetchErr != nil {
 			if util.IsUserErrorCodeMatch(fetchErr, codes.NotFound) {
 				p, configErr = resourceManager.CreatePipeline(&model.Pipeline{
@@ -179,12 +180,19 @@ func LoadSamples(resourceManager *resource.ResourceManager, sampleConfigPath str
 					Tags:        tags,
 				})
 				if configErr != nil {
-					// Log the error but not fail. The API Server pod can restart and it could potentially cause
-					// name collision. In the future, we might consider loading samples during deployment, instead
-					// of when API server starts.
-					glog.Warningf(fmt.Sprintf(
-						"Failed to create pipeline for %s. Error: %v", cfg.Name, configErr))
-					continue
+					if util.IsUserErrorCodeMatch(configErr, codes.AlreadyExists) {
+						// SQL samples live in the shared namespace, so retry there
+						// when a previous load already created this pipeline.
+						p, fetchErr = resourceManager.GetPipelineByNameAndNamespace(cfg.Name, "")
+						if fetchErr != nil {
+							glog.Warningf("Failed to create or find pipeline %s: create=%v, fetch=%v", cfg.Name, configErr, fetchErr)
+							continue
+						}
+						glog.Infof("Pipeline %s already exists (id=%s), proceeding to version check.", cfg.Name, p.UUID)
+					} else {
+						glog.Warningf("Failed to create pipeline for %s. Error: %v", cfg.Name, configErr)
+						continue
+					}
 				} else {
 					glog.Info(fmt.Sprintf("Successfully uploaded Pipeline %s.", cfg.Name))
 				}
@@ -219,7 +227,7 @@ func LoadSamples(resourceManager *resource.ResourceManager, sampleConfigPath str
 		// If the Pipeline Version exists, do nothing
 		// Otherwise upload new Pipeline Version for
 		// this pipeline.
-		_, fetchErr = resourceManager.GetPipelineVersionByName(pvName)
+		_, fetchErr = resourceManager.GetPipelineVersionByName(p.UUID, pvName)
 		if fetchErr != nil {
 			if util.IsUserErrorCodeMatch(fetchErr, codes.NotFound) {
 				_, configErr = resourceManager.CreatePipelineVersion(
@@ -241,7 +249,7 @@ func LoadSamples(resourceManager *resource.ResourceManager, sampleConfigPath str
 					glog.Info(fmt.Sprintf("Successfully uploaded PipelineVersion %s.", pvName))
 				}
 
-				if processedPipelines[pvName] {
+				if processedPipelines[p.UUID] {
 					// Since the default sorting is by create time,
 					// Sleep one second makes sure the samples are
 					// showing up in the same order as they are added.
@@ -256,7 +264,7 @@ func LoadSamples(resourceManager *resource.ResourceManager, sampleConfigPath str
 			continue
 		}
 
-		processedPipelines[pvName] = true
+		processedPipelines[p.UUID] = true
 	}
 
 	if !haveSamplesLoaded {

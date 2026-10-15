@@ -73,7 +73,7 @@ export class NewExperiment extends Page<{ namespace?: string }, NewExperimentSta
     };
   }
 
-  public render(): JSX.Element {
+  public render(): React.JSX.Element {
     const { description, experimentName, isbeingCreated, validationError } = this.state;
 
     return (
@@ -117,7 +117,7 @@ export class NewExperiment extends Page<{ namespace?: string }, NewExperimentSta
             />
             <Button
               id='cancelNewExperimentBtn'
-              onClick={() => this.props.history.push(RoutePage.EXPERIMENTS)}
+              onClick={() => this.props.navigate(RoutePage.EXPERIMENTS)}
             >
               Cancel
             </Button>
@@ -173,7 +173,7 @@ export class NewExperiment extends Page<{ namespace?: string }, NewExperimentSta
             [QUERY_PARAMS.firstRunInExperiment]: '1',
           });
         }
-        this.props.history.push(RoutePage.NEW_RUN + searchString);
+        this.props.navigate(RoutePage.NEW_RUN + searchString);
         this.props.updateSnackbar({
           autoHideDuration: 10000,
           message: `Successfully created new Experiment: ${newExperiment.display_name}`,

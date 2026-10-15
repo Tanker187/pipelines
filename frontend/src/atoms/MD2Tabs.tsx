@@ -72,7 +72,7 @@ class MD2Tabs extends React.Component<MD2TabsProps, any> {
   private _tabRefs = this.props.tabs.map((_tab) => React.createRef<HTMLSpanElement>());
   private _timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
-  public render(): JSX.Element {
+  public render(): React.JSX.Element {
     const selected = this._getSelectedIndex();
     const switchHandler = this.props.onSwitch || (() => null);
     const tabs = this.props.tabs.map((tab) => {
@@ -138,7 +138,8 @@ class MD2Tabs extends React.Component<MD2TabsProps, any> {
       this._rootRef.current.getBoundingClientRect().left;
 
     const tabIndicator = this._indicatorRef.current;
-    tabIndicator.style.left = leftOffset - 5 + 'px';
+    // Center the indicator's extra 5px of width around the label.
+    tabIndicator.style.left = leftOffset - 2.5 + 'px';
     tabIndicator.style.width = activeLabelElement.getBoundingClientRect().width + 5 + 'px';
     tabIndicator.style.display = 'block';
   }

@@ -20,17 +20,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"slices"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/pipelines/api/v2alpha1/go/pipelinespec"
+	"github.com/kubeflow/pipelines/backend/src/driver/driverapi"
 	"github.com/kubeflow/pipelines/backend/src/v2/compiler/argocompiler"
 	"github.com/kubeflow/pipelines/backend/test/logger"
 	"github.com/kubeflow/pipelines/backend/test/testutil"
 
-	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v4/pkg/apis/workflow/v1alpha1"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -89,54 +90,47 @@ func CreateCompiledWorkflowFile(compiledWorflow *v1alpha1.Workflow, compiledWork
 	return testutil.CreateFile(compiledWorkflowFilePath, [][]byte{fileContents})
 }
 
-// ConfigureCacheSettings - Add/Remove cache_disabled args in the workflow
-func ConfigureCacheSettings(workflow *v1alpha1.Workflow, remove bool) *v1alpha1.Workflow {
-	cacheDisabledArg := "--cache_disabled"
+// ConfigurePluginSettings sets cache_disabled in every driver-plugin template.
+// remove=true yields the cache-enabled golden form.
+func ConfigurePluginSettings(workflow *v1alpha1.Workflow, remove bool) *v1alpha1.Workflow {
 	configuredWorkflow := workflow.DeepCopy()
-	for _, template := range configuredWorkflow.Spec.Templates {
-		if template.Container != nil {
-			if len(template.Container.Args) > 0 {
-				if remove {
-					// Remove cache_disabled arg if it exists
-					if slices.Contains(template.Container.Args, cacheDisabledArg) {
-						for index, arg := range template.Container.Args {
-							if arg == cacheDisabledArg {
-								template.Container.Args = append(template.Container.Args[:index], template.Container.Args[index+1:]...)
-								break
-							}
-						}
-					}
-				} else {
-					// Add cache_disabled arg if it doesn't exist and this is a driver container
-					if slices.Contains(template.Container.Args, "--run_id") && !slices.Contains(template.Container.Args, cacheDisabledArg) {
-						template.Container.Args = append(template.Container.Args, cacheDisabledArg)
-					}
-				}
-			}
-			for index, userContainer := range template.InitContainers {
-				if remove {
-					// Remove cache_disabled arg if it exists
-					if slices.Contains(userContainer.Args, cacheDisabledArg) {
-						for userArgsIndex, arg := range userContainer.Args {
-							if arg == cacheDisabledArg {
-								userContainer.Args = append(userContainer.Args[:userArgsIndex], userContainer.Args[userArgsIndex+1:]...)
-								break
-							}
-						}
-					}
-				} else {
-					// Add cache_disabled arg if it doesn't exist
-					if !slices.Contains(userContainer.Args, cacheDisabledArg) {
-						if len(userContainer.Args) > 0 {
-							userContainer.Args = append(userContainer.Args, cacheDisabledArg)
-						} else {
-							userContainer.Args = []string{cacheDisabledArg}
-						}
-					}
-				}
-				template.InitContainers[index].Args = userContainer.Args
+	for i, template := range configuredWorkflow.Spec.Templates {
+		if template.Plugin == nil {
+			continue
+		}
+		plugin, owned, err := driverapi.DecodePluginConfig(template.Plugin.Value)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to decode plugin config for template %q", template.Name)
+		if !owned {
+			continue
+		}
+		plugin.Args["cache_disabled"] = !remove
+		value, err := driverapi.EncodePluginValue(plugin.Args)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to encode plugin config for template %q", template.Name)
+		configuredWorkflow.Spec.Templates[i].Plugin.Value = value
+	}
+	return configuredWorkflow
+}
+
+// ConfigureCacheSettings rewrites cache_disabled in both legacy container args
+// and driver-plugin args.
+func ConfigureCacheSettings(workflow *v1alpha1.Workflow, remove bool) *v1alpha1.Workflow {
+	target := "--cache_disabled=true"
+	if remove {
+		target = "--cache_disabled=false"
+	}
+	setCacheArg := func(args []string) {
+		for index, arg := range args {
+			if strings.HasPrefix(arg, "--cache_disabled=") {
+				args[index] = target
 			}
 		}
 	}
-	return configuredWorkflow
+	configuredWorkflow := workflow.DeepCopy()
+	for i := range configuredWorkflow.Spec.Templates {
+		template := &configuredWorkflow.Spec.Templates[i]
+		if template.Container != nil {
+			setCacheArg(template.Container.Args)
+		}
+	}
+	return ConfigurePluginSettings(configuredWorkflow, remove)
 }

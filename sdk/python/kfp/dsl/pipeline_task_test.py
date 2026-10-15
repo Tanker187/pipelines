@@ -324,8 +324,14 @@ class PipelineTaskTest(parameterized.TestCase):
             'expected_memory': '55Mi',
         },
         {
+            # Kubernetes only reads the lowercase kilobyte suffix, so the
+            # historic "K" is rewritten instead of reaching the cluster.
             'memory': '6K',
-            'expected_memory': '6K',
+            'expected_memory': '6k',
+        },
+        {
+            'memory': '6k',
+            'expected_memory': '6k',
         },
         {
             'memory': '65Ki',
@@ -334,6 +340,26 @@ class PipelineTaskTest(parameterized.TestCase):
         {
             'memory': '7000',
             'expected_memory': '7000',
+        },
+        {
+            'memory': '1.5Gi',
+            'expected_memory': '1.5Gi',
+        },
+        {
+            'memory': '2.5G',
+            'expected_memory': '2.5G',
+        },
+        {
+            'memory': '0.5',
+            'expected_memory': '0.5',
+        },
+        {
+            'memory': '500m',
+            'expected_memory': '500m',
+        },
+        {
+            'memory': '1e3',
+            'expected_memory': '1e3',
         },
     )
     def test_set_memory_limit(self, memory: str, expected_memory: str):
@@ -348,6 +374,27 @@ class PipelineTaskTest(parameterized.TestCase):
         task.set_memory_limit(memory)
         self.assertEqual(expected_memory,
                          task.container_spec.resources.memory_limit)
+
+    @parameterized.parameters(
+        {'memory': '1GB'},
+        {'memory': '1gi'},
+        {'memory': '1KI'},
+        {'memory': '512 Mi'},
+        {'memory': '-1Gi'},
+        {'memory': 'Gi'},
+        {'memory': '1..5Gi'},
+        {'memory': ''},
+    )
+    def test_set_memory_limit_invalid(self, memory: str):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        with self.assertRaisesRegex(ValueError, 'Invalid memory string'):
+            task.set_memory_limit(memory)
+        with self.assertRaisesRegex(ValueError, 'Invalid memory string'):
+            task.set_memory_request(memory)
 
     def test_set_accelerator_type_with_type_only(self):
         task = pipeline_task.PipelineTask(
@@ -381,6 +428,90 @@ class PipelineTaskTest(parameterized.TestCase):
         )
         task.set_env_variable('env_name', 'env_value')
         self.assertEqual({'env_name': 'env_value'}, task.container_spec.env)
+
+    def test_set_debug_pause_default(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        task.set_debug_pause()
+        self.assertEqual({'ARGO_DEBUG_PAUSE_AFTER': 'true'},
+                         task.container_spec.env)
+
+    def test_set_debug_pause_before_only(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        task.set_debug_pause(before=True, after=False)
+        self.assertEqual({'ARGO_DEBUG_PAUSE_BEFORE': 'true'},
+                         task.container_spec.env)
+
+    def test_set_debug_pause_before_and_after(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        task.set_debug_pause(before=True, after=True)
+        self.assertEqual(
+            {
+                'ARGO_DEBUG_PAUSE_BEFORE': 'true',
+                'ARGO_DEBUG_PAUSE_AFTER': 'true',
+            }, task.container_spec.env)
+
+    def test_set_debug_pause_on_error(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        task.set_debug_pause(on_error=True)
+        self.assertEqual({'ARGO_DEBUG_PAUSE_ON_ERROR': 'true'},
+                         task.container_spec.env)
+
+    def test_set_debug_pause_raises_on_error_without_after(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        with self.assertRaisesRegex(
+                ValueError,
+                r"'on_error' applies to post-execution pause and requires"):
+            task.set_debug_pause(on_error=True, after=False)
+
+    def test_set_debug_pause_raises_when_both_false(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        with self.assertRaisesRegex(
+                ValueError,
+                r"At least one of 'before' or 'after' must be True"):
+            task.set_debug_pause(before=False, after=False)
+
+    def test_set_retry_invalid_policy_raises(self):
+        task = pipeline_task.PipelineTask(
+            component_spec=structures.ComponentSpec.from_yaml_documents(
+                V2_YAML),
+            args={'input1': 'value'},
+        )
+        with self.assertRaisesRegex(ValueError, 'Invalid retry policy'):
+            task.set_retry(num_retries=1, policy='BadValue')
+
+    def test_set_retry_valid_policies(self):
+        for policy in ('Always', 'OnFailure', 'OnError', 'OnTransientError'):
+            task = pipeline_task.PipelineTask(
+                component_spec=structures.ComponentSpec.from_yaml_documents(
+                    V2_YAML),
+                args={'input1': 'value'},
+            )
+            task.set_retry(num_retries=2, policy=policy)
+            self.assertEqual(task._task_spec.retry_policy.policy, policy)
 
     def test_set_display_name(self):
         task = pipeline_task.PipelineTask(
@@ -425,7 +556,7 @@ class TestPlatformSpecificFunctionality(unittest.TestCase):
             t.platform_config = {'platform1': {'feature': [1, 2, 3]}}
             with self.assertRaisesRegex(
                     ValueError,
-                    r"Can only access '\.platform_spec' property on a tasks created from pipelines\. Use '\.platform_config' for tasks created from primitive components\."
+                    r"Can only access '\.platform_spec' property on tasks created from pipelines\. Use '\.platform_config' for tasks created from primitive components\."
             ):
                 t.platform_spec
 
@@ -435,7 +566,9 @@ class TestTaskInFinalState(unittest.TestCase):
 
     Many properties and methods will be blocked.
 
-    Also tests that the .output and .outputs behavior behaves as expected when the outputs are values, not placeholders, as will be the case when PipelineTask is in the state FINAL.
+    Also tests that the .output and .outputs behavior behaves as
+    expected when the outputs are values, not placeholders, as will be
+    the case when PipelineTask is in the state FINAL.
     """
 
     def test_output_property(self):

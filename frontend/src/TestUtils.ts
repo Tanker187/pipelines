@@ -18,8 +18,10 @@
 // Because this is test utils.
 
 import 'src/build/tailwind.output.css';
+import { act } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
-import { match } from 'react-router';
+import React from 'react';
+import { Location, useLocation } from 'react-router';
 import { beforeEach, expect, MockInstance } from 'vitest';
 import { ToolbarActionConfig } from './components/Toolbar';
 import { Feature } from './features';
@@ -52,7 +54,12 @@ export default class TestUtils {
 
   /**
    * Adds a one-time mock implementation to the provided spy that mimics an error
-   * network response
+   * network response.
+   *
+   * Tests render under Strict Mode (see vitest.setup.ts), which mounts class
+   * pages twice, so a request issued from componentDidMount consumes this
+   * one-time error on the first mount and succeeds on the second. Use
+   * makeErrorResponse when the error should apply to the page under test.
    */
   public static makeErrorResponseOnce(spy: MockInstance, message: string): void {
     spy.mockImplementationOnce(() => {
@@ -83,17 +90,17 @@ export default class TestUtils {
   public static generatePageProps(
     PageElement: new (_: PageProps) => Page<any, any>,
     location: Location,
-    matchValue: match,
-    historyPushSpy: MockInstance | null,
+    params: Record<string, string | undefined>,
+    navigateSpy: MockInstance | null,
     updateBannerSpy: MockInstance | null,
     updateDialogSpy: MockInstance | null,
     updateToolbarSpy: MockInstance | null,
     updateSnackbarSpy: MockInstance | null,
   ): PageProps {
     const pageProps = {
-      history: { push: historyPushSpy } as any,
+      navigate: navigateSpy as any,
       location: location as any,
-      match: matchValue,
+      params,
       toolbarProps: { actions: {}, breadcrumbs: [], pageTitle: '' },
       updateBanner: updateBannerSpy as any,
       updateDialog: updateDialogSpy as any,
@@ -125,6 +132,27 @@ function getTestApi() {
     throw new Error('Vitest API (vi) not found');
   }
   return testApi;
+}
+
+/**
+ * Wraps {@link TestUtils.flushPromises} inside `act()` so React state
+ * updates triggered by resolved promises are applied without warnings.
+ */
+export async function flushPromisesInAct(): Promise<void> {
+  await act(async () => {
+    await TestUtils.flushPromises();
+  });
+}
+
+/**
+ * Runs `callback` and then flushes pending promises, all inside a
+ * single `act()` boundary.
+ */
+export async function invokeAndFlush(callback: () => void | Promise<void>): Promise<void> {
+  await act(async () => {
+    await callback();
+    await TestUtils.flushPromises();
+  });
 }
 
 export function expectWarnings() {
@@ -209,4 +237,14 @@ export function mockResizeObserver(width = 800, height = 600) {
   }
 
   (window as any).ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+}
+
+/** Displays the current native router location for navigation assertions. */
+export function RouterLocation() {
+  const location = useLocation();
+  return React.createElement(
+    'output',
+    { 'data-testid': 'router-location' },
+    location.pathname + location.search,
+  );
 }

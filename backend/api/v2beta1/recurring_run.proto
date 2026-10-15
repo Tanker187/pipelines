@@ -149,16 +149,25 @@ message RecurringRun {
   bool no_catchup = 15;
 
   // TODO (gkclat): consider removing this field if it can be obtained from the parent experiment.
-  // Output only. Namespace this recurring run belongs to. Derived from the parent experiment.
+  // Optional input field. Namespace this recurring run belongs to. Derived
+  // from the parent experiment when experiment_id is set.
   string namespace = 16;
 
   // ID of the parent experiment this recurring run belongs to.
   string experiment_id = 17;
+
+  // Optional input. Plugin inputs to propagate to each triggered run.
+  // Each triggered run will inherit these values in its plugins_input field.
+  map<string, google.protobuf.Struct> plugins_input = 19;
 }
 
 message CreateRecurringRunRequest {
   // The recurring run to be created.
   RecurringRun recurring_run = 1;
+
+  // Optional input field. Namespace for the recurring run. Ignored when
+  // recurring_run.namespace is set.
+  string namespace = 2;
 }
 
 message GetRecurringRunRequest {

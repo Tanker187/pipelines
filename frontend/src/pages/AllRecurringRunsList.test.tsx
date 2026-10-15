@@ -17,7 +17,7 @@
 import * as React from 'react';
 import { render } from '@testing-library/react';
 import { vi } from 'vitest';
-import { RoutePage } from 'src/components/Router';
+import { QUERY_PARAMS, RoutePage } from 'src/components/Router';
 import { ButtonKeys } from 'src/lib/Buttons';
 import { AllRecurringRunsList } from './AllRecurringRunsList';
 import { PageProps } from './Page';
@@ -37,16 +37,16 @@ describe('AllRecurringRunsList', () => {
   let updateToolbarSpy: ReturnType<typeof vi.fn>;
   let updateDialogSpy: ReturnType<typeof vi.fn>;
   let updateSnackbarSpy: ReturnType<typeof vi.fn>;
-  let historyPushSpy: ReturnType<typeof vi.fn>;
+  let navigateSpy: ReturnType<typeof vi.fn>;
   let renderResult: ReturnType<typeof render> | null = null;
   let allRecurringRunsListRef: React.RefObject<AllRecurringRunsList> | null = null;
   let toolbarProps: ToolbarProps | null = null;
 
   function baseProps(): PageProps {
     return {
-      history: { push: historyPushSpy } as any,
-      location: '' as any,
-      match: '' as any,
+      navigate: navigateSpy,
+      location: { pathname: RoutePage.RECURRING_RUNS, search: '' } as any,
+      params: {},
       toolbarProps: { actions: {}, breadcrumbs: [], pageTitle: '' },
       updateBanner: updateBannerSpy,
       updateDialog: updateDialogSpy,
@@ -79,15 +79,8 @@ describe('AllRecurringRunsList', () => {
     updateToolbarSpy = vi.fn();
     updateDialogSpy = vi.fn();
     updateSnackbarSpy = vi.fn();
-    historyPushSpy = vi.fn();
+    navigateSpy = vi.fn();
     lastRecurringRunListProps = null;
-    toolbarProps = null;
-  });
-
-  afterEach(() => {
-    renderResult?.unmount();
-    renderResult = null;
-    allRecurringRunsListRef = null;
     toolbarProps = null;
   });
 
@@ -113,8 +106,8 @@ describe('AllRecurringRunsList', () => {
   it('navigates to new run page when new run is clicked', () => {
     renderAllRecurringRunsList();
     toolbarProps!.actions[ButtonKeys.NEW_RECURRING_RUN].action();
-    expect(historyPushSpy).toHaveBeenLastCalledWith(
-      RoutePage.NEW_RUN + '?experimentId=&recurring=1',
+    expect(navigateSpy).toHaveBeenLastCalledWith(
+      `${RoutePage.NEW_RUN}?${QUERY_PARAMS.experimentId}=&${QUERY_PARAMS.isRecurring}=1&${QUERY_PARAMS.returnTo}=${encodeURIComponent(RoutePage.RECURRING_RUNS)}`,
     );
   });
 });

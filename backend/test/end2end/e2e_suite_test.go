@@ -119,7 +119,7 @@ var _ = BeforeSuite(func() {
 		*config.UploadPipelinesWithKubernetes,
 		*config.KubeflowMode,
 		*config.DebugMode,
-		*config.AuthToken,
+		userToken,
 		*config.Namespace,
 		clientConfig,
 		tlsCfg,
@@ -135,7 +135,6 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-
 	// Create Experiment so that we can use it to associate pipeline runs with
 	experimentName := fmt.Sprintf("E2EExperiment-%s", strconv.FormatInt(time.Now().UnixNano(), 10))
 	experiment := testutil.CreateExperiment(experimentClient, experimentName, testutil.GetNamespace())

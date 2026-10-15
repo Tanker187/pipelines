@@ -17,7 +17,7 @@
 import * as React from 'react';
 import { render, screen } from '@testing-library/react';
 import ExecutionNode, { getIcon, getExecutionIcon } from './ExecutionNode';
-import { Execution } from 'src/third_party/mlmd';
+import { PipelineTaskTaskState } from 'src/apisv2beta1/run';
 import { ReactFlowProvider } from '@xyflow/react';
 
 describe('ExecutionNode', () => {
@@ -32,34 +32,37 @@ describe('ExecutionNode', () => {
     expect(screen.getByText('train-step')).toBeInTheDocument();
   });
 
-  it('renders with COMPLETE state and green background', () => {
-    const { container } = renderWithProvider(
+  it('renders with SUCCEEDED state and correct icon', () => {
+    renderWithProvider(
       <ExecutionNode
         id='exec-1'
-        data={{ label: 'completed-step', state: Execution.State.COMPLETE }}
+        data={{ label: 'completed-step', state: PipelineTaskTaskState.SUCCEEDED }}
       />,
     );
     expect(screen.getByText('completed-step')).toBeInTheDocument();
-    expect(container.querySelector('.bg-mui-green-50')).toBeInTheDocument();
+    expect(screen.getByTestId('CheckCircleIcon')).toBeInTheDocument();
   });
 
-  it('renders with RUNNING state and green background', () => {
-    const { container } = renderWithProvider(
+  it('renders with RUNNING state and correct icon', () => {
+    renderWithProvider(
       <ExecutionNode
         id='exec-1'
-        data={{ label: 'running-step', state: Execution.State.RUNNING }}
+        data={{ label: 'running-step', state: PipelineTaskTaskState.RUNNING }}
       />,
     );
     expect(screen.getByText('running-step')).toBeInTheDocument();
-    expect(container.querySelector('.bg-mui-green-50')).toBeInTheDocument();
+    expect(screen.getByTestId('RefreshIcon')).toBeInTheDocument();
   });
 
-  it('renders with FAILED state and red background', () => {
-    const { container } = renderWithProvider(
-      <ExecutionNode id='exec-1' data={{ label: 'failed-step', state: Execution.State.FAILED }} />,
+  it('renders with FAILED state and correct icon', () => {
+    renderWithProvider(
+      <ExecutionNode
+        id='exec-1'
+        data={{ label: 'failed-step', state: PipelineTaskTaskState.FAILED }}
+      />,
     );
     expect(screen.getByText('failed-step')).toBeInTheDocument();
-    expect(container.querySelector('.bg-mui-red-50')).toBeInTheDocument();
+    expect(screen.getByTestId('ErrorIcon')).toBeInTheDocument();
   });
 
   it('sets the title attribute', () => {
@@ -67,6 +70,29 @@ describe('ExecutionNode', () => {
       <ExecutionNode id='exec-1' data={{ label: 'titled-step', state: undefined }} />,
     );
     expect(screen.getByTitle('titled-step')).toBeInTheDocument();
+  });
+
+  it('renders hidden, non-connectable edge anchors', () => {
+    const { container } = renderWithProvider(
+      <ExecutionNode id='exec-1' data={{ label: 'anchored-step', state: undefined }} />,
+    );
+    const handles = container.querySelectorAll('.react-flow__handle');
+
+    expect(handles).toHaveLength(2);
+    handles.forEach((handle) => {
+      expect(handle).toHaveStyle({
+        height: '1px',
+        minHeight: '1px',
+        minWidth: '1px',
+        opacity: '0',
+        pointerEvents: 'none',
+        width: '1px',
+      });
+      expect(handle).not.toHaveClass('connectable');
+      expect(handle).not.toHaveClass('connectablestart');
+      expect(handle).not.toHaveClass('connectableend');
+      expect(handle).not.toHaveClass('connectionindicator');
+    });
   });
 });
 
@@ -76,32 +102,36 @@ describe('getIcon', () => {
   });
 
   it.each([
-    ['COMPLETE', Execution.State.COMPLETE, '.bg-mui-green-50', 'CheckCircleIcon'],
-    ['RUNNING', Execution.State.RUNNING, '.bg-mui-green-50', 'RefreshIcon'],
-    ['FAILED', Execution.State.FAILED, '.bg-mui-red-50', 'ErrorIcon'],
-    ['NEW', Execution.State.NEW, '.bg-mui-blue-50', 'PowerSettingsNewIcon'],
-    ['CANCELED', Execution.State.CANCELED, '.bg-mui-grey-200', undefined],
-    ['CACHED', Execution.State.CACHED, '.bg-mui-green-50', 'CloudDownloadIcon'],
-    ['UNKNOWN', Execution.State.UNKNOWN, '.bg-mui-grey-200', 'MoreHorizIcon'],
-  ] as const)('returns the correct icon for %s state', (_label, state, bgClass, iconTestId) => {
-    const { container } = render(getIcon(state)!);
-    expect(container.querySelector(bgClass)).toBeInTheDocument();
-    if (iconTestId) {
-      expect(container.querySelector(`[data-testid="${iconTestId}"]`)).toBeInTheDocument();
-    }
-  });
+    ['SUCCEEDED', PipelineTaskTaskState.SUCCEEDED, 'CheckCircleIcon', 'bg-mui-green-50'],
+    ['RUNNING', PipelineTaskTaskState.RUNNING, 'RefreshIcon', 'bg-mui-green-50'],
+    ['FAILED', PipelineTaskTaskState.FAILED, 'ErrorIcon', 'bg-mui-red-50'],
+    ['SKIPPED', PipelineTaskTaskState.SKIPPED, 'StopCircleIcon', 'bg-mui-grey-200'],
+    ['CACHED', PipelineTaskTaskState.CACHED, 'CloudDownloadIcon', 'bg-mui-green-50'],
+    [
+      'UNSPECIFIED',
+      PipelineTaskTaskState.RUNTIME_STATE_UNSPECIFIED,
+      'MoreHorizIcon',
+      'bg-mui-grey-200',
+    ],
+  ] as const)(
+    'returns the correct icon for %s state',
+    (_label, state, iconTestId, backgroundClass) => {
+      render(getIcon(state)!);
+      const stateIcon = screen.getByTestId(iconTestId);
+      expect(stateIcon).toBeInTheDocument();
+      expect(stateIcon.parentElement).toHaveClass(backgroundClass);
+    },
+  );
 });
 
 describe('getExecutionIcon', () => {
-  it('returns a grey ListAlt icon for undefined state', () => {
-    const { container } = render(getExecutionIcon(undefined));
-    expect(container.querySelector('.text-mui-grey-500')).toBeInTheDocument();
-    expect(container.querySelector('[data-testid="ListAltIcon"]')).toBeInTheDocument();
+  it('returns a default ListAlt icon for undefined state', () => {
+    render(getExecutionIcon(undefined));
+    expect(screen.getByTestId('execution-icon-default')).toBeInTheDocument();
   });
 
-  it('returns a blue ListAlt icon for defined state', () => {
-    const { container } = render(getExecutionIcon(Execution.State.RUNNING));
-    expect(container.querySelector('.text-mui-blue-600')).toBeInTheDocument();
-    expect(container.querySelector('[data-testid="ListAltIcon"]')).toBeInTheDocument();
+  it('returns an active ListAlt icon for defined state', () => {
+    render(getExecutionIcon(PipelineTaskTaskState.RUNNING));
+    expect(screen.getByTestId('execution-icon-active')).toBeInTheDocument();
   });
 });

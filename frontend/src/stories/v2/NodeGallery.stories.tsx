@@ -23,8 +23,10 @@ import {
   ExecutionFlowElementData,
   FlowElementDataBase,
 } from 'src/components/graph/Constants';
-import { NodeTypeNames, NODE_TYPES } from 'src/lib/v2/StaticFlow';
-import { Artifact, Execution } from 'src/third_party/mlmd';
+import { PipelineTaskTaskState } from 'src/apisv2beta1/run';
+import { NodeTypeNames } from 'src/lib/v2/StaticFlow';
+import { NODE_TYPES } from 'src/components/graph/NodeTypes';
+import { GROUP_NODE_TYPE } from 'src/lib/v2/GroupedFlow';
 
 const nodes = [
   {
@@ -39,7 +41,7 @@ const nodes = [
     position: { x: 100, y: 200 },
     data: {
       label: 'UNKNOWN execution node',
-      state: Execution.State.UNKNOWN,
+      state: PipelineTaskTaskState.RUNTIME_STATE_UNSPECIFIED,
     } as ExecutionFlowElementData,
   },
   {
@@ -48,7 +50,7 @@ const nodes = [
     position: { x: 100, y: 300 },
     data: {
       label: 'NEW execution node',
-      state: Execution.State.NEW,
+      state: PipelineTaskTaskState.RUNTIME_STATE_UNSPECIFIED,
     } as ExecutionFlowElementData,
   },
   {
@@ -57,7 +59,7 @@ const nodes = [
     position: { x: 100, y: 400 },
     data: {
       label: 'RUNNING execution node',
-      state: Execution.State.RUNNING,
+      state: PipelineTaskTaskState.RUNNING,
     } as ExecutionFlowElementData,
   },
   {
@@ -66,7 +68,7 @@ const nodes = [
     position: { x: 100, y: 500 },
     data: {
       label: 'COMPLETE execution node',
-      state: Execution.State.COMPLETE,
+      state: PipelineTaskTaskState.SUCCEEDED,
     } as ExecutionFlowElementData,
   },
   {
@@ -75,7 +77,7 @@ const nodes = [
     position: { x: 100, y: 600 },
     data: {
       label: 'CACHED execution node',
-      state: Execution.State.CACHED,
+      state: PipelineTaskTaskState.CACHED,
     } as ExecutionFlowElementData,
   },
   {
@@ -84,7 +86,7 @@ const nodes = [
     position: { x: 100, y: 700 },
     data: {
       label: 'CANCELED execution node',
-      state: Execution.State.CANCELED,
+      state: PipelineTaskTaskState.SKIPPED,
     } as ExecutionFlowElementData,
   },
   {
@@ -93,7 +95,7 @@ const nodes = [
     position: { x: 100, y: 800 },
     data: {
       label: 'FAILED execution node',
-      state: Execution.State.FAILED,
+      state: PipelineTaskTaskState.FAILED,
     } as ExecutionFlowElementData,
   },
   {
@@ -102,7 +104,7 @@ const nodes = [
     position: { x: 100, y: 900 },
     data: {
       label: 'invalid execution node',
-      state: 8 as Execution.State,
+      state: 'INVALID' as PipelineTaskTaskState,
     } as ExecutionFlowElementData,
   },
   {
@@ -111,7 +113,7 @@ const nodes = [
     position: { x: 400, y: 100 },
     data: {
       label: 'DEFAULT artifact node',
-      state: Artifact.State.UNKNOWN,
+      hasArtifact: false,
     } as ArtifactFlowElementData,
   },
   {
@@ -120,15 +122,18 @@ const nodes = [
     position: { x: 400, y: 200 },
     data: {
       label: 'LIVE artifact node',
-      state: Artifact.State.LIVE,
+      hasArtifact: true,
     } as ArtifactFlowElementData,
   },
   {
     id: '201',
-    type: NodeTypeNames.SUB_DAG,
+    type: GROUP_NODE_TYPE,
     position: { x: 700, y: 72 },
+    style: { width: 288, height: 48 },
     data: {
       label: 'Sub-DAG node',
+      collapsed: true,
+      expand: () => {},
     } as FlowElementDataBase,
   },
 ];

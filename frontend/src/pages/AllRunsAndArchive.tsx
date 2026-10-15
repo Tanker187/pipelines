@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type * as React from 'react';
 import AllRunsListPage from './AllRunsList';
 import MD2Tabs from '../atoms/MD2Tabs';
 import { Page, PageProps } from './Page';
@@ -41,7 +42,7 @@ class AllRunsAndArchive extends Page<AllRunsAndArchiveProps, AllRunsAndArchiveSt
     return { actions: {}, breadcrumbs: [], pageTitle: '' };
   }
 
-  public render(): JSX.Element {
+  public render(): React.JSX.Element {
     return (
       <div className={classes(commonCss.page, padding(20, 't'))}>
         <MD2Tabs
@@ -61,7 +62,7 @@ class AllRunsAndArchive extends Page<AllRunsAndArchiveProps, AllRunsAndArchiveSt
   }
 
   private _tabSwitched(newTab: AllRunsAndArchiveTab): void {
-    this.props.history.push(
+    this.props.navigate(
       newTab === AllRunsAndArchiveTab.RUNS ? RoutePage.RUNS : RoutePage.ARCHIVED_RUNS,
     );
   }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type * as React from 'react';
 import BusyButton from '../../atoms/BusyButton';
 import Viewer, { ViewerConfig } from './Viewer';
 import { Apis } from '../../lib/Apis';
@@ -74,9 +75,9 @@ interface TensorboardViewerProps {
 interface TensorboardViewerState {
   busy: boolean;
   deleteDialogOpen: boolean;
-  podAddress: string;
+  proxyPath: string;
   tfImage: string;
-  // When podAddress is not null, we need to further tell whether the TensorBoard pod is accessible or not
+  // When proxyPath is not null, we need to further tell whether the TensorBoard pod is accessible or not
   tensorboardReady: boolean;
   errorMessage?: string;
 }
@@ -95,7 +96,7 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
     this.state = {
       busy: false,
       deleteDialogOpen: false,
-      podAddress: '',
+      proxyPath: '',
       tfImage: this._image() || DEFAULT_TF_IMAGE,
       tensorboardReady: false,
       errorMessage: undefined,
@@ -131,17 +132,17 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
     this.setStateSafe({ tfImage: e.target.value });
   };
 
-  public render(): JSX.Element {
+  public render(): React.JSX.Element {
     return (
       <div>
         {this.state.errorMessage && <div className={css.errorText}>{this.state.errorMessage}</div>}
-        {this.state.podAddress && (
+        {this.state.proxyPath && (
           <div>
             <div
               className={padding(20, 'b')}
             >{`Tensorboard ${this.state.tfImage} is running for this output.`}</div>
             <a
-              href={makeProxyUrl(this.state.podAddress)}
+              href={this.state.proxyPath}
               target='_blank'
               rel='noopener noreferrer'
               className={commonCss.unstyled}
@@ -206,7 +207,7 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
             </div>
           </div>
         )}
-        {!this.state.podAddress && (
+        {!this.state.proxyPath && (
           <div>
             <div className={padding(30, 'b')}>
               <FormControl variant='standard' className={css.formControl}>
@@ -280,10 +281,9 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
   }
 
   private async _checkTensorboardPodStatus(): Promise<void> {
-    // If pod address is not null and tensorboard pod doesn't seem to be read, pull status again
-    if (this.state.podAddress && !this.state.tensorboardReady) {
-      // Remove protocol prefix bofore ":" from pod address if any.
-      Apis.isTensorboardPodReady(makeProxyUrl(this.state.podAddress)).then((ready) => {
+    // If the proxied TensorBoard is not ready yet, poll the scoped proxy path again.
+    if (this.state.proxyPath && !this.state.tensorboardReady) {
+      Apis.isTensorboardPodReady(this.state.proxyPath).then((ready) => {
         this.setStateSafe(({ tensorboardReady }) => ({
           tensorboardReady: tensorboardReady || ready,
         }));
@@ -295,12 +295,12 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
     this.setStateSafe({ busy: true }, async () => {
       try {
         // TODO: parse tfImage here
-        const { podAddress, image } = await Apis.getTensorboardApp(
+        const { proxyPath, image } = await Apis.getTensorboardApp(
           this._buildUrl(),
           this._getNamespace(),
         );
-        if (podAddress) {
-          this.setStateSafe({ busy: false, podAddress, tfImage: image });
+        if (proxyPath) {
+          this.setStateSafe({ busy: false, proxyPath, tfImage: image });
         } else {
           // No existing pod
           this.setStateSafe({ busy: false });
@@ -315,14 +315,14 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
   private _startTensorboard = async () => {
     this.setStateSafe({ busy: true, errorMessage: undefined }, async () => {
       try {
-        const podAddress = await Apis.startTensorboardApp({
+        const proxyPath = await Apis.startTensorboardApp({
           logdir: this._buildUrl(),
           namespace: this._getNamespace(),
           image: this.state.tfImage,
           podTemplateSpec: this._podTemplateSpec(),
         });
-        this.setStateSafe({ busy: false, podAddress, tensorboardReady: false }, () => {
-          if (podAddress) {
+        this.setStateSafe({ busy: false, proxyPath, tensorboardReady: false }, () => {
+          if (proxyPath) {
             this._checkTensorboardPodStatus();
           } else {
             this._checkTensorboardApp();
@@ -336,7 +336,7 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
   };
 
   private _deleteTensorboard = async () => {
-    // delete the already opened Tensorboard, clear the podAddress recorded in frontend,
+    // delete the already opened Tensorboard, clear the proxy path recorded in frontend,
     // and return to the select & start tensorboard page
     this.setStateSafe({ busy: true, errorMessage: undefined }, async () => {
       try {
@@ -344,7 +344,7 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
         this.setStateSafe({
           busy: false,
           deleteDialogOpen: false,
-          podAddress: '',
+          proxyPath: '',
           tensorboardReady: false,
         });
       } catch (err) {
@@ -364,17 +364,6 @@ class TensorboardViewer extends Viewer<TensorboardViewerProps, TensorboardViewer
       this.setState(newState as any, cb);
     }
   }
-}
-
-function makeProxyUrl(podAddress: string) {
-  // Strip the protocol from the URL. This is a workaround for cloud shell
-  // incorrectly decoding the address and replacing the protocol's // with /.
-  // Pod address (after stripping protocol) is of the format
-  // <viewer_service_dns>.kubeflow.svc.cluster.local:6006/tensorboard/<viewer_name>/
-  // We use this pod address without encoding since encoded pod address failed to open the
-  // tensorboard instance on this pod.
-  // TODO: figure out why the encoded pod address failed to open the tensorboard.
-  return 'apis/v1beta1/_proxy/' + podAddress.replace(/(^\w+:|^)\/\//, '');
 }
 
 export default TensorboardViewer;

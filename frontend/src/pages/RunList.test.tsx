@@ -18,8 +18,8 @@ import * as React from 'react';
 import * as Utils from 'src/lib/Utils';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import RunList, { RunListProps } from './RunList';
-import TestUtils from 'src/TestUtils';
-import produce from 'immer';
+import TestUtils, { flushPromisesInAct } from 'src/TestUtils';
+import { produce } from 'immer';
 import { V2beta1Filter, V2beta1PredicateOperation } from 'src/apisv2beta1/filter';
 import { V2beta1Run, V2beta1RunStorageState, V2beta1RuntimeState } from 'src/apisv2beta1/run';
 import { Apis, RunSortKeys, ListRequest } from 'src/lib/Apis';
@@ -41,14 +41,15 @@ describe('RunList', () => {
   let listRunsSpy: ReturnType<typeof vi.spyOn>;
   let getRunSpy: ReturnType<typeof vi.spyOn>;
   let getPipelineVersionSpy: ReturnType<typeof vi.spyOn>;
+  let listPipelineVersionsSpy: ReturnType<typeof vi.spyOn>;
   let listExperimentsSpy: ReturnType<typeof vi.spyOn>;
   let formatDateStringSpy: ReturnType<typeof vi.spyOn>;
 
   function generateProps(): RunListProps {
     return {
-      history: {} as any,
+      navigate: vi.fn(),
       location: { search: '' } as any,
-      match: '' as any,
+      params: {},
       onError: onErrorSpy,
     };
   }
@@ -75,28 +76,28 @@ describe('RunList', () => {
         <RunListTest ref={runListRef} {...(props || generateProps())} />
       </CommonTestWrapper>,
     );
-    await TestUtils.flushPromises();
+    await flushPromisesInAct();
   }
 
   async function waitForRunListLoad(): Promise<void> {
     await waitFor(() => {
       expect(listRunsSpy).toHaveBeenCalled();
     });
-    await TestUtils.flushPromises();
+    await flushPromisesInAct();
   }
 
   async function waitForRunMaskLoadForIds(runIds: string[]): Promise<void> {
     await waitFor(() => {
       runIds.forEach((id) => expect(getRunSpy).toHaveBeenCalledWith(id));
     });
-    await TestUtils.flushPromises();
+    await flushPromisesInAct();
   }
 
   async function callLoadRuns(request: ListRequest): Promise<void> {
     await act(async () => {
       await getRunListInstance()._loadRuns(request);
     });
-    await TestUtils.flushPromises();
+    await flushPromisesInAct();
   }
 
   function mockNRuns(n: number, runTemplate: Partial<V2beta1Run>): void {
@@ -153,8 +154,7 @@ describe('RunList', () => {
   }
 
   function renderRenderer(element: React.ReactElement) {
-    const { asFragment } = render(<CommonTestWrapper>{element}</CommonTestWrapper>);
-    return asFragment();
+    render(<CommonTestWrapper>{element}</CommonTestWrapper>);
   }
 
   beforeEach(() => {
@@ -168,6 +168,9 @@ describe('RunList', () => {
         pipeline_id: 'pipeline-id',
         pipeline_version_id: 'pipeline-version-id',
       } as any);
+    listPipelineVersionsSpy = vi
+      .spyOn(Apis.pipelineServiceApiV2, 'listPipelineVersions')
+      .mockRejectedValue(new Error('not mocked for this test'));
     listExperimentsSpy = vi
       .spyOn(Apis.experimentServiceApiV2, 'listExperiments')
       .mockResolvedValue({ experiments: [] } as any);
@@ -177,10 +180,6 @@ describe('RunList', () => {
   });
 
   afterEach(() => {
-    if (renderResult) {
-      renderResult.unmount();
-      renderResult = null;
-    }
     runListRef = null;
     vi.resetAllMocks();
   });
@@ -188,7 +187,7 @@ describe('RunList', () => {
   it('renders the empty experience', async () => {
     await renderRunList();
     await waitForRunListLoad();
-    expect(renderResult!.asFragment()).toMatchSnapshot();
+    expect(screen.getByText('No available runs found.')).toBeInTheDocument();
   });
 
   describe('in archived state', () => {
@@ -197,7 +196,7 @@ describe('RunList', () => {
       props.storageState = V2beta1RunStorageState.ARCHIVED;
       await renderRunList(props);
       await waitForRunListLoad();
-      expect(renderResult!.asFragment()).toMatchSnapshot();
+      expect(screen.getByText('No archived runs found.')).toBeInTheDocument();
     });
 
     it('loads runs whose storage state is not ARCHIVED when storage state equals AVAILABLE', async () => {
@@ -227,6 +226,7 @@ describe('RunList', () => {
             ],
           } as V2beta1Filter),
         ),
+        true,
       );
     });
 
@@ -257,6 +257,7 @@ describe('RunList', () => {
             ],
           } as V2beta1Filter),
         ),
+        true,
       );
     });
 
@@ -297,6 +298,7 @@ describe('RunList', () => {
             ],
           } as V2beta1Filter),
         ),
+        true,
       );
     });
   });
@@ -332,9 +334,9 @@ describe('RunList', () => {
       10,
       RunSortKeys.CREATED_AT + ' desc',
       '',
+      true,
     );
     expect(props.onError).not.toHaveBeenCalled();
-    expect(renderResult!.asFragment()).toMatchSnapshot();
   });
 
   it('loads multiple runs', async () => {
@@ -430,6 +432,7 @@ describe('RunList', () => {
       undefined,
       undefined,
       undefined,
+      true,
     );
   });
 
@@ -451,6 +454,7 @@ describe('RunList', () => {
       undefined,
       undefined,
       undefined,
+      true,
     );
   });
 
@@ -557,6 +561,83 @@ describe('RunList', () => {
     await screen.findByText('some pipeline version');
   });
 
+  it('dedupes pipeline version lookups by unique pipeline/version id instead of one call per run', async () => {
+    const sharedPipelineId = 'shared-pipeline';
+    const sharedVersionId = 'shared-version';
+    listRunsSpy.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'run1',
+          display_name: 'run with id: run1',
+          pipeline_version_reference: {
+            pipeline_id: sharedPipelineId,
+            pipeline_version_id: sharedVersionId,
+          },
+          state: V2beta1RuntimeState.SUCCEEDED,
+        },
+        {
+          run_id: 'run2',
+          display_name: 'run with id: run2',
+          pipeline_version_reference: {
+            pipeline_id: sharedPipelineId,
+            pipeline_version_id: sharedVersionId,
+          },
+          state: V2beta1RuntimeState.SUCCEEDED,
+        },
+      ] as V2beta1Run[],
+    });
+    getPipelineVersionSpy.mockResolvedValue({
+      pipeline_id: sharedPipelineId,
+      pipeline_version_id: sharedVersionId,
+      display_name: 'shared pipeline version',
+    } as any);
+
+    const props = generateProps();
+    await renderRunList(props);
+    await waitForRunListLoad();
+
+    expect(screen.getAllByText('shared pipeline version')).toHaveLength(2);
+
+    // CustomTable's reload() overlaps under React Strict Mode in tests (see the
+    // isBusy comment in CustomTable.tsx), so the list loads twice here, one
+    // getPipelineVersion call per load. The property under test is that it's one
+    // call per load per unique (pipeline, version), not one call per run: two runs
+    // referencing the same version never produce more calls than two loads' worth
+    // of unique versions.
+    expect(getPipelineVersionSpy).toHaveBeenCalledTimes(2);
+    expect(getPipelineVersionSpy).toHaveBeenCalledWith(sharedPipelineId, sharedVersionId);
+    expect(listPipelineVersionsSpy).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the original error when the pipeline version lookup fails', async () => {
+    listRunsSpy.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'run1',
+          display_name: 'run with id: run1',
+          pipeline_version_reference: {
+            pipeline_id: 'test-pipeline-id',
+            pipeline_version_id: 'test-version-id',
+          },
+          state: V2beta1RuntimeState.SUCCEEDED,
+        },
+      ] as V2beta1Run[],
+    });
+    TestUtils.makeErrorResponse(getPipelineVersionSpy as any, 'User not authorized');
+
+    const props = generateProps();
+    await renderRunList(props);
+    await waitFor(() => {
+      expect(getPipelineVersionSpy).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(getRunListState()?.runs[0].error).toEqual(
+        'Failed to get associated pipeline version: User not authorized',
+      );
+    });
+  });
+
   // TODO(jlyaoyuli): add back this test (show recurring run config)
   // after the recurring run v2 API integration
 
@@ -600,103 +681,110 @@ describe('RunList', () => {
 
   it('renders run name as link to its details page', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
-      instance._nameCustomRenderer({ value: 'test run', id: 'run-id' }),
-    );
-    expect(fragment).toMatchSnapshot();
+    renderRenderer(instance._nameCustomRenderer({ value: 'test run', id: 'run-id' }));
+    const link = screen.getByTestId('run-name-link');
+    expect(link).toHaveTextContent('test run');
+    expect(link).toHaveAttribute('href', '/runs/details/run-id');
   });
 
   it('renders pipeline name as link to its details page', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._pipelineVersionCustomRenderer({
         id: 'run-id',
         value: { displayName: 'test pipeline', pipelineId: 'pipeline-id', usePlaceholder: false },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByText('test pipeline');
+    expect(link).toHaveAttribute('href', '/pipelines/details/pipeline-id');
   });
 
   it('handles no pipeline id given', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._pipelineVersionCustomRenderer({
         id: 'run-id',
         value: { displayName: 'test pipeline', usePlaceholder: false },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    expect(screen.getByText('-')).toBeInTheDocument();
   });
 
   it('shows "View pipeline" button if pipeline is embedded in run', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._pipelineVersionCustomRenderer({
         id: 'run-id',
         value: { displayName: 'test pipeline', pipelineId: 'pipeline-id', usePlaceholder: true },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByText('[View pipeline]');
+    expect(link).toHaveAttribute('href', expect.stringContaining('/pipelines/details/'));
   });
 
   it('handles no pipeline name', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._pipelineVersionCustomRenderer({
         id: 'run-id',
         value: { /* no displayName */ usePlaceholder: true },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByText('[View pipeline]');
+    expect(link).toHaveAttribute('href', expect.stringContaining('/pipelines/details/'));
   });
 
   it('renders pipeline name as link to its details page', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._recurringRunCustomRenderer({
         id: 'run-id',
         value: { id: 'recurring-run-id' },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByText('[View config]');
+    expect(link).toHaveAttribute('href', '/recurringrun/details/recurring-run-id');
   });
 
   it('renders experiment name as link to its details page', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._experimentCustomRenderer({
         id: 'run-id',
         value: { displayName: 'test experiment', id: 'experiment-id' },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByText('test experiment');
+    expect(link).toHaveAttribute('href', '/experiments/details/experiment-id');
   });
 
   it('renders no experiment name', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._experimentCustomRenderer({
         id: 'run-id',
         value: { /* no displayName */ id: 'experiment-id' },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByRole('link', { name: '' });
+    expect(link).toHaveAttribute('href', '/experiments/details/experiment-id');
+    expect(link).toHaveTextContent('');
   });
 
   it('renders status as icon', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._statusCustomRenderer({
         value: V2beta1RuntimeState.SUCCEEDED,
         id: 'run-id',
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    expect(screen.getByTestId('node-status-sign')).toBeInTheDocument();
   });
 
   it('renders pipeline version name as link to its details page', () => {
     const instance = createRunListInstance();
-    const fragment = renderRenderer(
+    renderRenderer(
       instance._pipelineVersionCustomRenderer({
         id: 'run-id',
         value: {
@@ -707,6 +795,7 @@ describe('RunList', () => {
         },
       }),
     );
-    expect(fragment).toMatchSnapshot();
+    const link = screen.getByText('test pipeline version');
+    expect(link).toHaveAttribute('href', '/pipelines/details/pipeline-id/version/version-id');
   });
 });

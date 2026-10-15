@@ -15,7 +15,7 @@
  */
 
 import EnhancedExperimentDetails, { ExperimentDetails } from './ExperimentDetails';
-import TestUtils from 'src/TestUtils';
+import TestUtils, { RouterLocation, flushPromisesInAct, invokeAndFlush } from 'src/TestUtils';
 import { V2beta1Experiment, V2beta1ExperimentStorageState } from 'src/apisv2beta1/experiment';
 import { Apis } from 'src/lib/Apis';
 import { PageProps } from './Page';
@@ -23,13 +23,13 @@ import { RoutePage, RouteParams, QUERY_PARAMS } from 'src/components/Router';
 import { range } from 'lodash';
 import { ButtonKeys } from 'src/lib/Buttons';
 import { CommonTestWrapper } from 'src/TestWrapper';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NamespaceContext } from 'src/lib/KubeflowClient';
-import { Router } from 'react-router-dom';
-import { createMemoryHistory } from 'history';
+import { MemoryRouter } from 'react-router';
 import { V2beta1RecurringRunStatus } from 'src/apisv2beta1/recurringrun';
 import { V2beta1PredicateOperation } from 'src/apisv2beta1/filter';
 import { vi } from 'vitest';
+import { stableMuiSnapshotFragment } from 'src/testUtils/muiSnapshot';
 
 describe('ExperimentDetails', () => {
   const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => null);
@@ -39,7 +39,7 @@ describe('ExperimentDetails', () => {
   const updateBannerSpy = vi.fn();
   const updateDialogSpy = vi.fn();
   const updateSnackbarSpy = vi.fn();
-  const historyPushSpy = vi.fn();
+  const navigateSpy = vi.fn();
   const getExperimentSpy = vi.spyOn(Apis.experimentServiceApiV2, 'getExperiment');
   const listRecurringRunsSpy = vi.spyOn(Apis.recurringRunServiceApi, 'listRecurringRuns');
   const listRunsSpy = vi.spyOn(Apis.runServiceApiV2, 'listRuns');
@@ -55,12 +55,12 @@ describe('ExperimentDetails', () => {
   }
 
   function generateProps(): PageProps {
-    const match = { params: { [RouteParams.experimentId]: MOCK_EXPERIMENT.experiment_id } } as any;
+    const params = { [RouteParams.experimentId]: MOCK_EXPERIMENT.experiment_id } as any;
     return TestUtils.generatePageProps(
       ExperimentDetails,
       {} as any,
-      match,
-      historyPushSpy,
+      params,
+      navigateSpy,
       updateBannerSpy,
       updateDialogSpy,
       updateToolbarSpy,
@@ -92,19 +92,6 @@ describe('ExperimentDetails', () => {
     );
     await flushPromisesInAct();
     return utils;
-  }
-
-  async function flushPromisesInAct(): Promise<void> {
-    await act(async () => {
-      await TestUtils.flushPromises();
-    });
-  }
-
-  async function invokeAndFlush(callback: () => void | Promise<void>): Promise<void> {
-    await act(async () => {
-      await callback();
-      await TestUtils.flushPromises();
-    });
   }
 
   async function waitForExperimentLoad(): Promise<void> {
@@ -148,7 +135,7 @@ describe('ExperimentDetails', () => {
     updateSnackbarSpy.mockReset();
     updateToolbarSpy.mockReset();
     getExperimentSpy.mockReset();
-    historyPushSpy.mockReset();
+    navigateSpy.mockReset();
     listRecurringRunsSpy.mockReset();
     listRunsSpy.mockReset();
 
@@ -163,7 +150,7 @@ describe('ExperimentDetails', () => {
     await waitForExperimentLoad();
     await screen.findByText('No available runs found for this experiment.');
     expect(updateBannerSpy).toHaveBeenLastCalledWith({});
-    expect(asFragment()).toMatchSnapshot();
+    expect(stableMuiSnapshotFragment(asFragment())).toMatchSnapshot();
   });
 
   it('uses the experiment ID in props as the page title if the experiment has no name', async () => {
@@ -171,7 +158,7 @@ describe('ExperimentDetails', () => {
     experiment.display_name = '';
 
     const props = generateProps();
-    props.match = { params: { [RouteParams.experimentId]: 'test exp ID' } } as any;
+    props.params = { [RouteParams.experimentId]: 'test exp ID' } as any;
 
     getExperimentSpy.mockImplementation(() => experiment);
 
@@ -212,7 +199,7 @@ describe('ExperimentDetails', () => {
     const { asFragment } = await renderExperimentDetails();
     await waitForExperimentLoad();
     await screen.findByText('No available runs found for this experiment.');
-    expect(asFragment()).toMatchSnapshot();
+    expect(stableMuiSnapshotFragment(asFragment())).toMatchSnapshot();
   });
 
   it('removes all description text after second newline and replaces with an ellipsis', async () => {
@@ -229,12 +216,10 @@ describe('ExperimentDetails', () => {
   });
 
   it('opens the expanded description modal when the expand button is clicked', async () => {
-    const { container } = await renderExperimentDetails();
+    await renderExperimentDetails();
     await waitForExperimentLoad();
 
-    const expandButton = container.querySelector('#expandExperimentDescriptionBtn');
-    expect(expandButton).not.toBeNull();
-    fireEvent.click(expandButton as HTMLElement);
+    fireEvent.click(screen.getByTestId('LaunchIcon'));
     await flushPromisesInAct();
     expect(updateDialogSpy).toHaveBeenCalledWith({
       content: MOCK_EXPERIMENT.description,
@@ -244,7 +229,7 @@ describe('ExperimentDetails', () => {
 
   it('calls getExperiment with the experiment ID in props', async () => {
     const props = generateProps();
-    props.match = { params: { [RouteParams.experimentId]: 'test exp ID' } } as any;
+    props.params = { [RouteParams.experimentId]: 'test exp ID' } as any;
     await renderExperimentDetails(props);
     await waitFor(() => {
       expect(getExperimentSpy).toHaveBeenCalledWith('test exp ID');
@@ -252,7 +237,7 @@ describe('ExperimentDetails', () => {
   });
 
   it('shows an error banner if fetching the experiment fails', async () => {
-    TestUtils.makeErrorResponseOnce(getExperimentSpy, 'test error');
+    TestUtils.makeErrorResponse(getExperimentSpy, 'test error');
 
     await renderExperimentDetails();
 
@@ -312,11 +297,11 @@ describe('ExperimentDetails', () => {
     );
     screen.getByText('1 active');
     await screen.findByText('No available runs found for this experiment.');
-    expect(asFragment()).toMatchSnapshot();
+    expect(stableMuiSnapshotFragment(asFragment())).toMatchSnapshot();
   }, 20000);
 
   it("shows an error banner if fetching the experiment's recurring runs fails", async () => {
-    TestUtils.makeErrorResponseOnce(listRecurringRunsSpy, 'test error');
+    TestUtils.makeErrorResponse(listRecurringRunsSpy, 'test error');
 
     await renderExperimentDetails();
 
@@ -409,7 +394,7 @@ describe('ExperimentDetails', () => {
   });
 
   it('clears the error banner on refresh', async () => {
-    TestUtils.makeErrorResponseOnce(getExperimentSpy, 'test error');
+    TestUtils.makeErrorResponse(getExperimentSpy, 'test error');
 
     await renderExperimentDetails();
 
@@ -421,6 +406,7 @@ describe('ExperimentDetails', () => {
     const refreshAction = lastToolbarCall?.[0]?.actions?.[ButtonKeys.REFRESH];
     expect(refreshAction).toBeDefined();
 
+    getExperimentSpy.mockImplementation(() => newMockExperiment());
     await invokeAndFlush(async () => {
       await refreshAction!.action();
     });
@@ -445,8 +431,8 @@ describe('ExperimentDetails', () => {
     await waitFor(() => expect(compareButton).toBeEnabled());
     fireEvent.click(compareButton);
 
-    expect(historyPushSpy).toHaveBeenCalledWith(
-      RoutePage.COMPARE + `?${QUERY_PARAMS.runlist}=run-1-id,run-2-id`,
+    expect(navigateSpy).toHaveBeenCalledWith(
+      RoutePage.COMPARE + `?${QUERY_PARAMS.runlist}=run-1-id%2Crun-2-id`,
     );
   });
 
@@ -457,7 +443,7 @@ describe('ExperimentDetails', () => {
     const newRunButton = screen.getByRole('button', { name: 'Create run' });
     fireEvent.click(newRunButton);
 
-    expect(historyPushSpy).toHaveBeenCalledWith(
+    expect(navigateSpy).toHaveBeenCalledWith(
       RoutePage.NEW_RUN + `?${QUERY_PARAMS.experimentId}=${MOCK_EXPERIMENT.experiment_id}`,
     );
   });
@@ -469,7 +455,7 @@ describe('ExperimentDetails', () => {
     const newRecurringButton = screen.getByRole('button', { name: 'Create recurring run' });
     fireEvent.click(newRecurringButton);
 
-    expect(historyPushSpy).toHaveBeenCalledWith(
+    expect(navigateSpy).toHaveBeenCalledWith(
       RoutePage.NEW_RUN +
         `?${QUERY_PARAMS.experimentId}=${MOCK_EXPERIMENT.experiment_id}` +
         `&${QUERY_PARAMS.isRecurring}=1`,
@@ -489,7 +475,7 @@ describe('ExperimentDetails', () => {
     await waitFor(() => expect(cloneButton).toBeEnabled());
     fireEvent.click(cloneButton);
 
-    expect(historyPushSpy).toHaveBeenCalledWith(
+    expect(navigateSpy).toHaveBeenCalledWith(
       RoutePage.NEW_RUN + `?${QUERY_PARAMS.cloneFromRun}=run-1-id`,
     );
   });
@@ -630,22 +616,24 @@ describe('ExperimentDetails', () => {
     });
 
     it('redirects to ExperimentList page if namespace changes', () => {
-      const history = createMemoryHistory();
+      const initialEntries = ['/'];
       const { rerender } = render(
-        <Router history={history}>
+        <MemoryRouter initialEntries={initialEntries}>
+          <RouterLocation />
           <NamespaceContext.Provider value='test-ns-1'>
             <EnhancedExperimentDetails {...generateProps()} />
           </NamespaceContext.Provider>
-        </Router>,
+        </MemoryRouter>,
       );
       rerender(
-        <Router history={history}>
+        <MemoryRouter initialEntries={initialEntries}>
+          <RouterLocation />
           <NamespaceContext.Provider value='test-ns-2'>
             <EnhancedExperimentDetails {...generateProps()} />
           </NamespaceContext.Provider>
-        </Router>,
+        </MemoryRouter>,
       );
-      expect(history.location.pathname).toEqual(RoutePage.EXPERIMENTS);
+      expect(screen.getByTestId('router-location').textContent).toEqual(RoutePage.EXPERIMENTS);
     });
   });
 });

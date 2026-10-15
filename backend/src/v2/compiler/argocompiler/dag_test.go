@@ -17,7 +17,7 @@ package argocompiler
 import (
 	"testing"
 
-	wfapi "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	wfapi "github.com/argoproj/argo-workflows/v4/pkg/apis/workflow/v1alpha1"
 	"github.com/kubeflow/pipelines/api/v2alpha1/go/pipelinespec"
 	"github.com/kubeflow/pipelines/backend/src/apiserver/config/proxy"
 	"github.com/stretchr/testify/assert"
@@ -53,10 +53,8 @@ func TestDagDriverTask_WithTaskName(t *testing.T) {
 		{
 			name: "With custom taskName",
 			inputs: dagDriverInputs{
-				component:   "component-placeholder",
-				parentDagID: "parent-1",
-				task:        `{"taskInfo": {"name": "task-1"}}`,
-				taskName:    "simple-loop",
+				parentTaskID: "parent-1",
+				taskName:     "simple-loop",
 			},
 			expectedTask: "simple-loop",
 			checkParam:   true,
@@ -64,10 +62,8 @@ func TestDagDriverTask_WithTaskName(t *testing.T) {
 		{
 			name: "Without taskName",
 			inputs: dagDriverInputs{
-				component:   "component-placeholder",
-				parentDagID: "parent-1",
-				task:        `{"taskInfo": {"name": "test-task"}}`,
-				taskName:    "",
+				parentTaskID: "parent-1",
+				taskName:     "",
 			},
 			expectedTask: "",
 			checkParam:   false,
@@ -128,10 +124,8 @@ func TestDagDriverTask_TaskNameIncludedInArguments(t *testing.T) {
 	}
 
 	inputs := dagDriverInputs{
-		component:   "component-spec-json",
-		parentDagID: "parent-dag-123",
-		task:        `{"taskInfo": {"name": "for-loop-task"}}`,
-		taskName:    "simple-loop",
+		parentTaskID: "parent-dag-123",
+		taskName:     "simple-loop",
 	}
 
 	driverTask, _, err := c.dagDriverTask("iteration-driver", inputs)
@@ -147,7 +141,186 @@ func TestDagDriverTask_TaskNameIncludedInArguments(t *testing.T) {
 
 	require.Contains(t, paramMap, paramTaskName, "Driver task must include task-name parameter")
 	assert.Equal(t, "simple-loop", paramMap[paramTaskName], "task-name parameter should match provided taskName")
-	assert.Equal(t, "component-spec-json", paramMap[paramComponent])
-	assert.Equal(t, "parent-dag-123", paramMap[paramParentDagID])
-	assert.Equal(t, `{"taskInfo": {"name": "for-loop-task"}}`, paramMap[paramTask])
+	assert.Equal(t, "parent-dag-123", paramMap[paramParentDagTaskID])
+	assert.NotContains(t, paramMap, paramTask)
+}
+
+func TestAddDAGDriverTemplate_UsesNativeTaskOutputs(t *testing.T) {
+	proxy.InitializeConfigWithEmptyForTests()
+
+	c := &workflowCompiler{
+		templates: make(map[string]*wfapi.Template),
+		wf: &wfapi.Workflow{
+			Spec: wfapi.WorkflowSpec{
+				Templates: []wfapi.Template{},
+			},
+		},
+		spec: &pipelinespec.PipelineSpec{
+			PipelineInfo: &pipelinespec.PipelineInfo{
+				Name: "test-pipeline",
+			},
+		},
+		job: &pipelinespec.PipelineJob{
+			DisplayName: "test-pipeline-run",
+		},
+	}
+
+	name, err := c.addDAGDriverTemplate()
+	require.NoError(t, err)
+	require.Equal(t, "system-dag-driver", name)
+
+	tmpl, exists := c.templates[name]
+	require.True(t, exists, "system-dag-driver template should exist")
+	args := requireDriverPluginArgs(t, tmpl)
+	assert.Equal(t, inputValue(paramDriverType), args["type"])
+	assert.Equal(t, "{{workflow.namespace}}", args["namespace"])
+	assert.Equal(t, inputValue(paramParentDagTaskID), args["parent_task_id"])
+	assert.Equal(t, inputValue(paramRuntimeConfig), args["runtime_config"])
+	require.Len(t, tmpl.Outputs.Parameters, 3)
+	assert.Equal(t, "task-id", tmpl.Outputs.Parameters[0].Name)
+	assert.Equal(t, "$.task-id", tmpl.Outputs.Parameters[0].ValueFrom.JSONPath)
+	for _, output := range tmpl.Outputs.Parameters {
+		assert.Empty(t, output.ValueFrom.Path)
+	}
+
+}
+
+func TestPropagateIterationIndexToNestedDAGTemplates_DefaultsTemplateInput(t *testing.T) {
+	c := &workflowCompiler{
+		templates: map[string]*wfapi.Template{
+			"nested-dag": {
+				Name: "nested-dag",
+				DAG:  &wfapi.DAGTemplate{},
+			},
+		},
+		wf: &wfapi.Workflow{
+			Spec: wfapi.WorkflowSpec{
+				Templates: []wfapi.Template{},
+			},
+		},
+	}
+
+	require.NoError(t, c.propagateIterationIndexToNestedDAGTemplates("nested-dag", map[string]bool{}))
+	template := c.templates["nested-dag"]
+	require.Len(t, template.Inputs.Parameters, 1)
+	require.Equal(t, paramIterationIndex, template.Inputs.Parameters[0].Name)
+	require.NotNil(t, template.Inputs.Parameters[0].Default)
+	assert.Equal(t, "-1", template.Inputs.Parameters[0].Default.String())
+}
+
+func TestPropagateIterationIndexToNestedDAGTemplates(t *testing.T) {
+	proxy.InitializeConfigWithEmptyForTests()
+	c := &workflowCompiler{
+		templates: make(map[string]*wfapi.Template),
+		wf: &wfapi.Workflow{
+			Spec: wfapi.WorkflowSpec{
+				Templates: []wfapi.Template{},
+			},
+		},
+		spec: &pipelinespec.PipelineSpec{
+			PipelineInfo: &pipelinespec.PipelineInfo{Name: "test-pipeline"},
+		},
+		job: &pipelinespec.PipelineJob{DisplayName: "test-pipeline-run"},
+	}
+
+	driverTemplate, err := c.addDAGDriverTemplate()
+	require.NoError(t, err)
+	containerDriverTemplate, err := c.addContainerDriverTemplate()
+	require.NoError(t, err)
+
+	inner := &wfapi.Template{
+		Name: "comp-inner",
+		Inputs: wfapi.Inputs{
+			Parameters: []wfapi.Parameter{{Name: paramParentDagTaskID}},
+		},
+		DAG: &wfapi.DAGTemplate{
+			Tasks: []wfapi.DAGTask{
+				{
+					Name:     "inner-driver",
+					Template: driverTemplate,
+					Arguments: wfapi.Arguments{Parameters: []wfapi.Parameter{
+						{Name: paramParentDagTaskID, Value: wfapi.AnyStringPtr(inputParameter(paramParentDagTaskID))},
+					}},
+				},
+				{
+					Name:     "inner-container-driver",
+					Template: containerDriverTemplate,
+					Arguments: wfapi.Arguments{Parameters: []wfapi.Parameter{
+						{Name: paramParentDagTaskID, Value: wfapi.AnyStringPtr(inputParameter(paramParentDagTaskID))},
+					}},
+				},
+			},
+		},
+	}
+	outer := &wfapi.Template{
+		Name: "comp-outer",
+		Inputs: wfapi.Inputs{
+			Parameters: []wfapi.Parameter{{Name: paramParentDagTaskID}},
+		},
+		DAG: &wfapi.DAGTemplate{
+			Tasks: []wfapi.DAGTask{
+				{
+					Name:     "nested",
+					Template: "comp-inner",
+					Arguments: wfapi.Arguments{Parameters: []wfapi.Parameter{
+						{Name: paramParentDagTaskID, Value: wfapi.AnyStringPtr(inputParameter(paramParentDagTaskID))},
+					}},
+				},
+			},
+		},
+	}
+	c.templates[inner.Name] = inner
+	c.templates[outer.Name] = outer
+	c.wf.Spec.Templates = append(c.wf.Spec.Templates, *inner, *outer)
+
+	require.NoError(t, c.propagateIterationIndexToNestedDAGTemplates("comp-outer", map[string]bool{}))
+
+	require.Contains(t, parameterNames(c.templates["comp-outer"].Inputs.Parameters), paramIterationIndex)
+	require.Contains(t, parameterNames(c.templates["comp-inner"].Inputs.Parameters), paramIterationIndex)
+	require.Contains(t, parameterNames(c.templates["comp-outer"].DAG.Tasks[0].Arguments.Parameters), paramIterationIndex)
+	require.Contains(t, parameterNames(c.templates["comp-inner"].DAG.Tasks[0].Arguments.Parameters), paramIterationIndex)
+	require.Contains(t, parameterNames(c.templates["comp-inner"].DAG.Tasks[1].Arguments.Parameters), paramIterationIndex)
+}
+
+func parameterNames(parameters []wfapi.Parameter) []string {
+	names := make([]string, 0, len(parameters))
+	for _, parameter := range parameters {
+		names = append(names, parameter.Name)
+	}
+	return names
+}
+
+func TestDAGDriverTemplate_OmitsPipelineJobTimeArgs(t *testing.T) {
+	proxy.InitializeConfigWithEmptyForTests()
+
+	c := &workflowCompiler{
+		templates: make(map[string]*wfapi.Template),
+		wf: &wfapi.Workflow{
+			Spec: wfapi.WorkflowSpec{
+				Templates: []wfapi.Template{},
+			},
+		},
+		spec: &pipelinespec.PipelineSpec{
+			PipelineInfo: &pipelinespec.PipelineInfo{
+				Name: "test-pipeline",
+			},
+		},
+		job: &pipelinespec.PipelineJob{
+			DisplayName: "test-pipeline-run",
+		},
+	}
+
+	name, err := c.addDAGDriverTemplate()
+	require.NoError(t, err)
+	var tmpl *wfapi.Template
+	for index := range c.wf.Spec.Templates {
+		if c.wf.Spec.Templates[index].Name == name {
+			tmpl = &c.wf.Spec.Templates[index]
+			break
+		}
+	}
+	require.NotNil(t, tmpl, "system-dag-driver template should exist")
+	args := requireDriverPluginArgs(t, tmpl)
+	assert.NotContains(t, args, "pipeline_job_create_time_utc")
+	assert.NotContains(t, args, "pipeline_job_schedule_time_epoch_seconds")
 }

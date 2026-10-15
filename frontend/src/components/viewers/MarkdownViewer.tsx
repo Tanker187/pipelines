@@ -17,7 +17,7 @@
 import * as React from 'react';
 import Viewer, { ViewerConfig } from './Viewer';
 import { cssRaw } from 'typestyle';
-import Markdown from 'markdown-to-jsx';
+import { Markdown } from 'markdown-to-jsx/react';
 import Banner from '../Banner';
 import { ExternalLink } from 'src/atoms/ExternalLink';
 
@@ -72,7 +72,7 @@ class MarkdownViewer extends Viewer<MarkdownViewerProps, any> {
     return 'Markdown';
   }
 
-  public render(): JSX.Element | null {
+  public render(): React.JSX.Element | null {
     if (!this.props.configs[0]) {
       return null;
     }

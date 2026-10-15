@@ -15,7 +15,8 @@
  */
 
 import * as React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import EnhancedExperimentList, { ExperimentList } from './ExperimentList';
 import TestUtils from 'src/TestUtils';
@@ -29,11 +30,11 @@ import { RoutePage, QUERY_PARAMS, RouteParams } from 'src/components/Router';
 import { range } from 'lodash';
 import { ButtonKeys } from 'src/lib/Buttons';
 import { NamespaceContext } from 'src/lib/KubeflowClient';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { V2beta1ExperimentStorageState } from 'src/apisv2beta1/experiment';
 import { V2beta1Filter, V2beta1PredicateOperation } from 'src/apisv2beta1/filter';
 
-// Default arguments for Apis.experimentServiceApi.listExperiment.
+// Default arguments for Apis.experimentServiceApiV2.listExperiments.
 const LIST_EXPERIMENT_DEFAULTS = [
   '', // page token
   10, // page size
@@ -61,7 +62,7 @@ describe('ExperimentList', () => {
   let updateDialogSpy: ReturnType<typeof vi.fn>;
   let updateSnackbarSpy: ReturnType<typeof vi.fn>;
   let updateToolbarSpy: ReturnType<typeof vi.fn>;
-  let historyPushSpy: ReturnType<typeof vi.fn>;
+  let navigateSpy: ReturnType<typeof vi.fn>;
 
   const listExperimentsSpy = vi.spyOn(Apis.experimentServiceApiV2, 'listExperiments');
   const listRunsSpy = vi.spyOn(Apis.runServiceApiV2, 'listRuns');
@@ -74,7 +75,7 @@ describe('ExperimentList', () => {
       ExperimentList,
       { pathname: RoutePage.EXPERIMENTS } as any,
       '' as any,
-      historyPushSpy,
+      navigateSpy,
       updateBannerSpy,
       updateDialogSpy,
       updateToolbarSpy,
@@ -143,15 +144,13 @@ describe('ExperimentList', () => {
     updateDialogSpy = vi.fn();
     updateSnackbarSpy = vi.fn();
     updateToolbarSpy = vi.fn();
-    historyPushSpy = vi.fn();
+    navigateSpy = vi.fn();
     listExperimentsSpy.mockResolvedValue({ experiments: [] });
     listRunsSpy.mockResolvedValue({ runs: [] });
     formatDateStringSpy.mockImplementation(() => '1/2/2019, 12:34:56 PM');
   });
 
   afterEach(() => {
-    renderResult?.unmount();
-    renderResult = null;
     experimentListRef = null;
   });
 
@@ -162,7 +161,6 @@ describe('ExperimentList', () => {
         screen.getByText('No experiments found. Click "Create experiment" to start.'),
       ).toBeInTheDocument(),
     );
-    expect(renderResult!.asFragment()).toMatchSnapshot();
   });
 
   it('renders a list of one experiment', async () => {
@@ -173,7 +171,7 @@ describe('ExperimentList', () => {
     await renderExperimentList();
     await waitForDisplayExperiments(1);
     await waitFor(() => expect(screen.getAllByTestId('table-row')).toHaveLength(1));
-    expect(renderResult!.asFragment()).toMatchSnapshot();
+    expect(screen.getByText('test experiment name0')).toBeInTheDocument();
   });
 
   it('renders a list of one experiment with no description', async () => {
@@ -184,7 +182,7 @@ describe('ExperimentList', () => {
     await renderExperimentList();
     await waitForDisplayExperiments(1);
     await waitFor(() => expect(screen.getAllByTestId('table-row')).toHaveLength(1));
-    expect(renderResult!.asFragment()).toMatchSnapshot();
+    expect(screen.getByText('test experiment name0')).toBeInTheDocument();
   });
 
   it('renders a list of one experiment with error', async () => {
@@ -195,7 +193,6 @@ describe('ExperimentList', () => {
     await waitForDisplayExperiments(1);
     await waitFor(() => expect(screen.getAllByTestId('table-row')).toHaveLength(1));
     expect(loggerErrorSpy).toHaveBeenCalled();
-    expect(renderResult!.asFragment()).toMatchSnapshot();
     loggerErrorSpy.mockRestore();
   });
 
@@ -219,6 +216,7 @@ describe('ExperimentList', () => {
           ],
         } as V2beta1Filter),
       ),
+      true,
     );
     expect(getInstance().state.displayExperiments).toEqual([
       {
@@ -334,8 +332,9 @@ describe('ExperimentList', () => {
 
   it('can expand an experiment to see its runs', async () => {
     await mountWithNExperiments(1, 1);
-    const expandButtons = screen.getAllByRole('button', { name: 'Expand' });
-    fireEvent.click(expandButtons[0]);
+    const user = userEvent.setup();
+    const expandButtons = screen.getAllByRole('button', { name: /expand/i });
+    await user.click(expandButtons[0]);
     await waitFor(() => {
       expect(getInstance().state.displayExperiments).toEqual([
         {
@@ -372,7 +371,7 @@ describe('ExperimentList', () => {
     await act(async () => {
       await createBtn!.action();
     });
-    expect(historyPushSpy).toHaveBeenLastCalledWith(RoutePage.NEW_EXPERIMENT);
+    expect(navigateSpy).toHaveBeenLastCalledWith(RoutePage.NEW_EXPERIMENT);
   });
 
   it('always has new experiment button enabled', async () => {
@@ -438,8 +437,8 @@ describe('ExperimentList', () => {
     await act(async () => {
       await compareBtn!.action();
     });
-    expect(historyPushSpy).toHaveBeenLastCalledWith(
-      `${RoutePage.COMPARE}?${QUERY_PARAMS.runlist}=run1,run2,run3`,
+    expect(navigateSpy).toHaveBeenLastCalledWith(
+      `${RoutePage.COMPARE}?${QUERY_PARAMS.runlist}=run1%2Crun2%2Crun3`,
     );
   });
 
@@ -452,7 +451,7 @@ describe('ExperimentList', () => {
     await act(async () => {
       await cloneBtn!.action();
     });
-    expect(historyPushSpy).toHaveBeenLastCalledWith(
+    expect(navigateSpy).toHaveBeenLastCalledWith(
       `${RoutePage.NEW_RUN}?${QUERY_PARAMS.cloneFromRun}=run1`,
     );
   });
@@ -497,7 +496,6 @@ describe('ExperimentList', () => {
     expect(link.getAttribute('href')).toBe(
       RoutePage.EXPERIMENT_DETAILS.replace(':' + RouteParams.experimentId, 'experiment-id'),
     );
-    expect(asFragment()).toMatchSnapshot();
     unmount();
   });
 
@@ -513,8 +511,8 @@ describe('ExperimentList', () => {
         { state: V2beta1RuntimeState.SUCCEEDED },
       ],
     } as any);
-    const { asFragment, unmount } = render(<div>{statusRenderer}</div>);
-    expect(asFragment()).toMatchSnapshot();
+    const { unmount } = render(<div>{statusRenderer}</div>);
+    expect(screen.getAllByTestId('node-status-sign')).toHaveLength(5);
     unmount();
   });
 

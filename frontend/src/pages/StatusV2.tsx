@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
+import type * as React from 'react';
 import ErrorIcon from '@mui/icons-material/Error';
 import PendingIcon from '@mui/icons-material/Schedule';
 import RunningIcon from 'src/icons/statusRunning';
 import SkippedIcon from '@mui/icons-material/SkipNext';
 import SuccessIcon from '@mui/icons-material/CheckCircle';
-import CachedIcon from 'src/icons/statusCached';
 import TerminatedIcon from 'src/icons/statusTerminated';
 import UnknownIcon from '@mui/icons-material/Help';
 import { color } from 'src/Css';
 import { logger, formatDateString } from 'src/lib/Utils';
 import { checkIfTerminatedV2 } from 'src/lib/StatusUtils';
 import { V2beta1RuntimeState } from 'src/apisv2beta1/run';
-import * as metadataStorePb from 'src/third_party/mlmd/generated/ml_metadata/proto/metadata_store_pb';
 import { Tooltip } from '@mui/material';
 
 export function statusToIcon(
@@ -34,8 +33,7 @@ export function statusToIcon(
   startDate?: Date | string,
   endDate?: Date | string,
   nodeMessage?: string,
-  mlmdState?: metadataStorePb.Execution.State,
-): JSX.Element {
+): React.JSX.Element {
   state = checkIfTerminatedV2(state, nodeMessage);
   // tslint:disable-next-line:variable-name
   let IconComponent: any = UnknownIcon;
@@ -87,12 +85,6 @@ export function statusToIcon(
       if (state != null) {
         logger.verbose('Unknown state:', state);
       }
-  }
-  // TODO(jlyaoyuli): Additional changes is probably needed after Status IR integration.
-  if (mlmdState === metadataStorePb.Execution.State.CACHED) {
-    IconComponent = CachedIcon;
-    iconColor = color.success;
-    title = 'Execution was skipped and outputs were taken from cache';
   }
   return (
     <Tooltip

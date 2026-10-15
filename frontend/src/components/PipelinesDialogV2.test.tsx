@@ -20,7 +20,7 @@ import PipelinesDialogV2, { PipelinesDialogV2Props } from './PipelinesDialogV2';
 import { PageProps } from 'src/pages/Page';
 import { Apis, PipelineSortKeys } from 'src/lib/Apis';
 import { V2beta1Pipeline, V2beta1ListPipelinesResponse } from 'src/apisv2beta1/pipeline';
-import TestUtils from 'src/TestUtils';
+import { flushPromisesInAct } from 'src/TestUtils';
 import { BuildInfoContext } from 'src/lib/BuildInfo';
 import { NameWithTooltip } from 'src/components/CustomTableNameColumn';
 
@@ -46,9 +46,9 @@ function generateProps(): PipelinesDialogV2Props {
 
 function generatePageProps(): PageProps {
   return {
-    history: {} as any,
+    navigate: vi.fn(),
     location: '' as any,
-    match: {} as any,
+    params: {},
     toolbarProps: {} as any,
     updateBanner: vi.fn(),
     updateDialog: vi.fn(),
@@ -95,7 +95,7 @@ describe('PipelinesDialog', () => {
         <PipelinesDialogV2 {...generateProps()} />
       </BuildInfoContext.Provider>,
     );
-    await TestUtils.flushPromises();
+    await flushPromisesInAct();
 
     expect(listPipelineSpy).toHaveBeenCalledWith('ns', '', 10, 'created_at desc', '');
     // Verify the display names are shown instead of the names
@@ -109,7 +109,7 @@ describe('PipelinesDialog', () => {
         <PipelinesDialogV2 {...generateProps()} />
       </BuildInfoContext.Provider>,
     );
-    await TestUtils.flushPromises();
+    await flushPromisesInAct();
 
     expect(listPipelineSpy).toHaveBeenCalledWith(undefined, '', 10, 'created_at desc', '');
     // Verify the display names are shown instead of the names

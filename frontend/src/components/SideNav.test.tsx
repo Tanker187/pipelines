@@ -15,9 +15,8 @@
  */
 
 import * as React from 'react';
-import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { createMemoryHistory } from 'history';
 import { vi } from 'vitest';
 import { LocalStorage, LocalStorageKey } from '../lib/LocalStorage';
 import { ExternalLinks, RoutePage } from './Router';
@@ -39,21 +38,19 @@ const defaultProps = {
   },
 };
 
-function isCollapsed(container: HTMLElement): boolean {
-  const root = container.querySelector('#sideNav');
-  return !!root && root.classList.contains(css.collapsedRoot);
+function isCollapsed(): boolean {
+  const root = screen.getByTestId('sideNav');
+  return root.classList.contains(css.collapsedRoot);
 }
 
 function renderSideNav(
   page: RoutePage,
   overrides: Partial<React.ComponentProps<typeof SideNav>> = {},
 ) {
-  const history = createMemoryHistory();
   const ref = React.createRef<SideNav>();
   const props = {
     ...defaultProps,
     ...overrides,
-    history,
     page,
   } as React.ComponentProps<typeof SideNav>;
   const renderResult = render(
@@ -68,6 +65,11 @@ function renderSideNav(
 }
 
 describe('SideNav', () => {
+  it('keeps namespace transfer out of the sidebar', () => {
+    renderSideNav(RoutePage.METADATA_TRANSFER);
+    expect(screen.queryByRole('link', { name: 'Export / Import' })).not.toBeInTheDocument();
+  });
+
   let localStorageHasKeySpy: ReturnType<typeof vi.spyOn>;
   let localStorageIsCollapsedSpy: ReturnType<typeof vi.spyOn>;
 
@@ -91,13 +93,13 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementationOnce(() => false);
     (window as any).innerWidth = wideWidth;
     const { renderResult } = renderSideNav(RoutePage.PIPELINES);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders sidebar nav buttons without primary button styling', async () => {
     const { renderResult } = renderSideNav(RoutePage.PIPELINES);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
 
     const pipelinesButton = renderResult.getByRole('button', { name: 'Pipelines' });
     const docsButton = renderResult.getByRole('button', { name: 'Documentation' });
@@ -116,79 +118,79 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementationOnce(() => false);
     (window as any).innerWidth = narrowWidth;
     const { renderResult } = renderSideNav(RoutePage.PIPELINES);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders Pipelines as active page', async () => {
     const { renderResult } = renderSideNav(RoutePage.PIPELINES);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders Pipelines as active when on PipelineDetails page', async () => {
     const { renderResult } = renderSideNav(RoutePage.PIPELINE_DETAILS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page', async () => {
     const { renderResult } = renderSideNav(RoutePage.EXPERIMENTS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active when on ExperimentDetails page', async () => {
     const { renderResult } = renderSideNav(RoutePage.EXPERIMENT_DETAILS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page when on NewExperiment page', async () => {
     const { renderResult } = renderSideNav(RoutePage.NEW_EXPERIMENT);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page when on Compare page', async () => {
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page when on AllRuns page', async () => {
     const { renderResult } = renderSideNav(RoutePage.RUNS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page when on RunDetails page', async () => {
     const { renderResult } = renderSideNav(RoutePage.RUN_DETAILS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page when on RecurringRunDetails page', async () => {
     const { renderResult } = renderSideNav(RoutePage.RECURRING_RUN_DETAILS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders experiments as active page when on NewRun page', async () => {
     const { renderResult } = renderSideNav(RoutePage.NEW_RUN);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders recurring runs as active page', async () => {
     const { renderResult } = renderSideNav(RoutePage.RECURRING_RUNS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
   it('renders jobs as active page when on JobDetails page', async () => {
     const { renderResult } = renderSideNav(RoutePage.RECURRING_RUN_DETAILS);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
     expect(renderResult.asFragment()).toMatchSnapshot();
   });
 
@@ -205,14 +207,14 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementation(() => true);
     (window as any).innerWidth = wideWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
   });
 
   it('expands if collapse state is false in localStorage', async () => {
     localStorageIsCollapsedSpy.mockImplementationOnce(() => false);
     localStorageHasKeySpy.mockImplementationOnce(() => true);
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
   });
 
   it('collapses if no collapse state in localStorage, and window is too narrow', async () => {
@@ -220,7 +222,7 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementationOnce(() => false);
     (window as any).innerWidth = narrowWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
   });
 
   it('expands if no collapse state in localStorage, and window is wide', async () => {
@@ -228,7 +230,7 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementationOnce(() => false);
     (window as any).innerWidth = wideWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
   });
 
   it('collapses if no collapse state in localStorage, and window goes from wide to narrow', async () => {
@@ -236,13 +238,13 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementationOnce(() => false);
     (window as any).innerWidth = wideWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
 
     act(() => {
       (window as any).innerWidth = narrowWidth;
       window.dispatchEvent(new Event('resize'));
     });
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
   });
 
   it('expands if no collapse state in localStorage, and window goes from narrow to wide', async () => {
@@ -250,13 +252,13 @@ describe('SideNav', () => {
     localStorageHasKeySpy.mockImplementationOnce(() => false);
     (window as any).innerWidth = narrowWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
 
     act(() => {
       (window as any).innerWidth = wideWidth;
       window.dispatchEvent(new Event('resize'));
     });
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
   });
 
   it('saves state in localStorage if chevron is clicked', async () => {
@@ -266,14 +268,19 @@ describe('SideNav', () => {
 
     (window as any).innerWidth = narrowWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
 
-    const chevron = renderResult.container.querySelector(`.${css.chevron}`);
-    if (!chevron) {
-      throw new Error('Chevron button not found');
-    }
-    fireEvent.click(chevron);
+    fireEvent.click(screen.getByTestId('chevron-toggle'));
     expect(spy).toHaveBeenCalledWith(false);
+  });
+
+  it('labels the chevron toggle with the action it performs', async () => {
+    renderSideNav(RoutePage.PIPELINES);
+    await waitFor(() => expect(isCollapsed()).toBe(false));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse navigation' }));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
+    expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeInTheDocument();
   });
 
   it('does not collapse if collapse state is saved in localStorage, and window resizes', async () => {
@@ -282,13 +289,13 @@ describe('SideNav', () => {
 
     (window as any).innerWidth = wideWidth;
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
 
     act(() => {
       (window as any).innerWidth = narrowWidth;
       window.dispatchEvent(new Event('resize'));
     });
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(false));
+    await waitFor(() => expect(isCollapsed()).toBe(false));
   });
 
   it('populates the display build information using the default props', () => {
@@ -420,6 +427,6 @@ describe('SideNav', () => {
     (window as any).innerWidth = narrowWidth;
 
     const { renderResult } = renderSideNav(RoutePage.COMPARE);
-    await waitFor(() => expect(isCollapsed(renderResult.container)).toBe(true));
+    await waitFor(() => expect(isCollapsed()).toBe(true));
   });
 });

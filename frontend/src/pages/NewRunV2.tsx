@@ -24,10 +24,9 @@ import {
   Radio,
   Checkbox,
 } from '@mui/material';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import * as JsYaml from 'js-yaml';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { V2beta1Experiment, V2beta1ExperimentStorageState } from 'src/apisv2beta1/experiment';
 import { V2beta1Pipeline, V2beta1PipelineVersion } from 'src/apisv2beta1/pipeline';
 import { V2beta1PipelineVersionReference, V2beta1Run } from 'src/apisv2beta1/run';
@@ -40,10 +39,12 @@ import { CustomRendererProps } from 'src/components/CustomTable';
 import { NameWithTooltip } from 'src/components/CustomTableNameColumn';
 import { Description } from 'src/components/Description';
 import NewRunParametersV2 from 'src/components/NewRunParametersV2';
-import { QUERY_PARAMS, RoutePage, RouteParams } from 'src/components/Router';
+import { getSafeReturnPath, QUERY_PARAMS, RoutePage, RouteParams } from 'src/components/Router';
 import Trigger from 'src/components/Trigger';
 import { color, commonCss, padding } from 'src/Css';
+import { loadYaml } from 'src/lib/YamlLoad';
 import { Apis, ExperimentSortKeys, PipelineSortKeys, PipelineVersionSortKeys } from 'src/lib/Apis';
+import { useKeyedState } from 'src/hooks/useKeyedState';
 import {
   getInitialParameterState,
   type RuntimeParameters,
@@ -98,7 +99,6 @@ interface RunV2Props {
 type NewRunV2Props = RunV2Props & PageProps;
 
 export type { RuntimeParameters, SpecParameters } from 'src/lib/NewRunParametersUtils';
-type KeyedState<T> = { key: string; value: T };
 
 const hashString64 = (value: string): string => {
   let first = 0x9e3779b1;
@@ -141,14 +141,6 @@ const getTemplateData = (templateString?: string) => {
     return getEmptyTemplateData();
   }
 };
-
-function useKeyedState<T>(key: string, initialValue: T) {
-  const [state, setState] = useState<KeyedState<T>>({ key: '', value: initialValue });
-  const value = state.key === key ? state.value : initialValue;
-  const setValue = useCallback((value: T) => setState({ key, value }), [key]);
-
-  return [value, setValue] as const;
-}
 
 type CloneOrigin = {
   isClone: boolean;
@@ -260,6 +252,7 @@ function NewRunV2(props: NewRunV2Props) {
   } = props;
   const cloneOrigin = getCloneOrigin(existingRun, existingRecurringRun);
   const urlParser = new URLParser(props);
+  const returnPath = getSafeReturnPath(urlParser.get(QUERY_PARAMS.returnTo));
   const [customRunName, setCustomRunName] = useState<string | null>(null);
   const [runDescription, setRunDescription] = useState('');
   const [serviceAccount, setServiceAccount] = useState('');
@@ -322,6 +315,10 @@ function NewRunV2(props: NewRunV2Props) {
     () => getTemplateData(templateString),
     [templateString],
   );
+  /* eslint-disable react-hooks/preserve-manual-memoization --
+   * These memoized clone inputs can be mutated by generated API types. Keep the
+   * existing identity boundaries until React Compiler adoption revisits them.
+   */
   const clonedRuntimeConfigKey = useMemo(
     () => JSON.stringify(clonedRuntimeConfig ?? null),
     [clonedRuntimeConfig],
@@ -337,6 +334,7 @@ function NewRunV2(props: NewRunV2Props) {
     () => getInitialParameterState(specParameters, clonedRuntimeConfig),
     [clonedRuntimeConfig, specParameters],
   );
+  /* eslint-enable react-hooks/preserve-manual-memoization */
   const initialPipelineRoot = clonedRuntimeConfig?.pipeline_root ?? defaultPipelineRoot;
   const [runtimeParameters, handleParameterChange] = useKeyedState<RuntimeParameters>(
     parameterStateKey,
@@ -423,7 +421,7 @@ function NewRunV2(props: NewRunV2Props) {
       experiment_id: selectedExperiment?.experiment_id,
       // pipeline_spec and pipeline_version_reference is exclusive.
       pipeline_spec: !(pipelineVersionRefClone || pipelineVersionRefNew)
-        ? JsYaml.safeLoad(templateString || '')
+        ? (loadYaml(templateString || '') as object)
         : undefined,
       pipeline_version_reference: useLatestVersion
         ? { pipeline_id: existingPipeline?.pipeline_id }
@@ -460,14 +458,14 @@ function NewRunV2(props: NewRunV2Props) {
         const data = await newRecurringRunMutation.mutateAsync(newRecurringRun);
         setIsStartingNewRun(false);
         if (data.recurring_run_id) {
-          props.history.push(
+          props.navigate(
             RoutePage.RECURRING_RUN_DETAILS.replace(
               ':' + RouteParams.recurringRunId,
               data.recurring_run_id,
             ),
           );
         } else {
-          props.history.push(RoutePage.RECURRING_RUNS);
+          props.navigate(RoutePage.RECURRING_RUNS);
         }
 
         props.updateSnackbar({
@@ -478,9 +476,9 @@ function NewRunV2(props: NewRunV2Props) {
         const data = await newRunMutation.mutateAsync(newRun);
         setIsStartingNewRun(false);
         if (data.run_id) {
-          props.history.push(RoutePage.RUN_DETAILS.replace(':' + RouteParams.runId, data.run_id));
+          props.navigate(RoutePage.RUN_DETAILS.replace(':' + RouteParams.runId, data.run_id));
         } else {
-          props.history.push(RoutePage.RUNS);
+          props.navigate(RoutePage.RUNS);
         }
 
         props.updateSnackbar({
@@ -546,7 +544,7 @@ function NewRunV2(props: NewRunV2Props) {
                     [QUERY_PARAMS.pipelineVersionId]: latestVersion?.pipeline_version_id || '',
                     [QUERY_PARAMS.isRecurring]: isRecurringRun ? '1' : '',
                   });
-                  props.history.replace(searchString);
+                  props.navigate(searchString, { replace: true });
                   handlePipelineVersionIdChange(latestVersion?.pipeline_version_id!);
                   handlePipelineIdChange(updatedPipeline.pipeline_id);
                 }
@@ -589,7 +587,7 @@ function NewRunV2(props: NewRunV2Props) {
                       updatedPipelineVersion.pipeline_version_id || '',
                     [QUERY_PARAMS.isRecurring]: isRecurringRun ? '1' : '',
                   });
-                  props.history.replace(searchString);
+                  props.navigate(searchString, { replace: true });
                   handlePipelineVersionIdChange(updatedPipelineVersion.pipeline_version_id);
                 }
               }}
@@ -650,7 +648,7 @@ function NewRunV2(props: NewRunV2Props) {
                   [QUERY_PARAMS.experimentId]: experiment.experiment_id || '',
                 });
               }
-              props.history.replace(searchString);
+              props.navigate(searchString, { replace: true });
             }
           }}
         />
@@ -757,8 +755,7 @@ function NewRunV2(props: NewRunV2Props) {
           <Button
             id='exitNewRunPageBtn'
             onClick={() => {
-              // TODO(zijianjoy): Return to previous page instead of defaulting to RUNS page.
-              props.history.push(RoutePage.RUNS);
+              props.navigate(returnPath || RoutePage.RUNS);
             }}
           >
             {'Cancel'}

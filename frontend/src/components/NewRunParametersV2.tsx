@@ -26,8 +26,8 @@ import {
   TextField,
 } from '@mui/material';
 import * as React from 'react';
-import { useEffect, useState } from 'react';
-import { PipelineSpecRuntimeConfig } from 'src/apis/run';
+import { useState } from 'react';
+import { V2beta1RuntimeConfig } from 'src/apisv2beta1/run';
 import { ExternalLink } from 'src/atoms/ExternalLink';
 import { ParameterType_ParameterTypeEnum } from 'src/generated/pipeline_spec/pipeline_spec';
 import {
@@ -73,7 +73,7 @@ interface NewRunParametersProps {
   pipelineRoot?: string;
   // ComponentInputsSpec_ParameterSpec
   specParameters: SpecParameters;
-  clonedRuntimeConfig?: PipelineSpecRuntimeConfig;
+  clonedRuntimeConfig?: V2beta1RuntimeConfig;
   initialParameterState?: InitialParameterState;
   handlePipelineRootChange?: (pipelineRoot?: string) => void;
   handleParameterChange?: (parameters: RuntimeParameters) => void;
@@ -106,27 +106,6 @@ function NewRunParametersV2(props: NewRunParametersProps) {
   const [updatedParameters, setUpdatedParameters] = useState<RuntimeParameters>(
     initialParameterState.updatedParameters,
   );
-
-  useEffect(() => {
-    // NewRunV2 already seeds parent state before render, so only preserve the
-    // standalone mount-time callback behavior for callers that do not provide it.
-    if (providedInitialParameterState) {
-      return;
-    }
-    if (setIsValidInput) {
-      setIsValidInput(initialParameterState.isValid);
-    }
-    // Propagate initial default/cloned parameter values so parent runtime_config stays populated.
-    if (handleParameterChange) {
-      handleParameterChange(initialParameterState.runtimeParameters);
-    }
-  }, [
-    handleParameterChange,
-    initialParameterState.isValid,
-    initialParameterState.runtimeParameters,
-    providedInitialParameterState,
-    setIsValidInput,
-  ]);
 
   return (
     <div>
@@ -269,7 +248,7 @@ class ParamEditor extends React.Component<ParamEditorProps, ParamEditorState> {
     nextProps: ParamEditorProps,
     prevState: ParamEditorState,
   ): { isInJsonForm: boolean; isJsonField: boolean } {
-    let isJson = true;
+    let isJson: boolean;
     let paramType = nextProps.param.type;
 
     switch (paramType) {
@@ -299,7 +278,7 @@ class ParamEditor extends React.Component<ParamEditorProps, ParamEditorState> {
     isJsonField: false,
   };
 
-  public render(): JSX.Element | null {
+  public render(): React.JSX.Element | null {
     const { id, onChange, param } = this.props;
 
     if (param.literals?.length) {

@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+import { NavigationProps } from 'src/lib/Navigation';
 import * as React from 'react';
 import CustomTable, { Column, Row } from '../components/CustomTable';
 import Toolbar, { ToolbarActionMap } from '../components/Toolbar';
 import { ListRequest } from '../lib/Apis';
-import { RouteComponentProps } from 'react-router-dom';
+
 import { logger, errorToMessage, formatDateString } from '../lib/Utils';
 import { DialogProps } from '../components/Router';
 
@@ -37,7 +38,7 @@ export interface BaseResource {
   namespace?: string;
 }
 
-export interface ResourceSelectorProps extends RouteComponentProps {
+export interface ResourceSelectorProps extends NavigationProps {
   listApi: (...args: any[]) => Promise<BaseResponse>;
   columns: Column[];
   emptyMessage: string;
@@ -70,7 +71,7 @@ class ResourceSelector extends React.Component<ResourceSelectorProps, ResourceSe
     };
   }
 
-  public render(): JSX.Element {
+  public render(): React.JSX.Element {
     const { rows, selectedIds, toolbarActionMap } = this.state;
     const { columns, title, filterLabel, emptyMessage, initialSortColumn } = this.props;
 
@@ -79,7 +80,6 @@ class ResourceSelector extends React.Component<ResourceSelectorProps, ResourceSe
         {title && <Toolbar actions={toolbarActionMap} breadcrumbs={[]} pageTitle={title} />}
 
         <CustomTable
-          isCalledByV1={false}
           columns={columns}
           rows={rows}
           selectedIds={selectedIds}

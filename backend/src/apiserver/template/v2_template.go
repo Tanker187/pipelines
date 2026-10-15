@@ -26,12 +26,14 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/kubeflow/pipelines/api/v2alpha1/go/pipelinespec"
+	"github.com/kubeflow/pipelines/backend/src/apiserver/common"
 	"github.com/kubeflow/pipelines/backend/src/apiserver/model"
 	"github.com/kubeflow/pipelines/backend/src/common/util"
 	scheduledworkflow "github.com/kubeflow/pipelines/backend/src/crd/pkg/apis/scheduledworkflow/v1beta1"
 	"github.com/kubeflow/pipelines/backend/src/v2/compiler/argocompiler"
 	"google.golang.org/protobuf/encoding/protojson"
 	goyaml "gopkg.in/yaml.v3"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -57,6 +59,11 @@ func NewGenericScheduledWorkflow(modelJob *model.Job) (*scheduledworkflow.Schedu
 		return nil, util.Wrap(err, "converting model trigger to crd trigger failed")
 	}
 
+	pluginsInput, err := modelPluginsInputToCRD(modelJob.PluginsInputString)
+	if err != nil {
+		return nil, util.Wrap(err, "Create job failed")
+	}
+
 	return &scheduledworkflow.ScheduledWorkflow{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kubeflow.org/v2beta1",
@@ -70,9 +77,9 @@ func NewGenericScheduledWorkflow(modelJob *model.Job) (*scheduledworkflow.Schedu
 			NoCatchup:         util.BoolPointer(modelJob.NoCatchup),
 			ExperimentId:      modelJob.ExperimentId,
 			PipelineId:        modelJob.PipelineId,
-			PipelineName:      modelJob.PipelineName,
 			PipelineVersionId: modelJob.PipelineVersionId,
 			ServiceAccount:    modelJob.ServiceAccount,
+			PluginsInput:      pluginsInput,
 		},
 	}, nil
 }
@@ -83,6 +90,17 @@ func (t *V2Spec) PipelineSpec() *pipelinespec.PipelineSpec {
 
 func (t *V2Spec) PlatformSpec() *pipelinespec.PlatformSpec {
 	return t.platformSpec
+}
+
+// ValidateJobInputs validates job runtime parameters without a full Argo workflow compilation.
+func (t *V2Spec) ValidateJobInputs(modelJob *model.Job) error {
+	job := &pipelinespec.PipelineJob{}
+	jobRuntimeConfig, err := modelToPipelineJobRuntimeConfig(&modelJob.RuntimeConfig)
+	if err != nil {
+		return util.Wrap(err, "Failed to convert runtime config")
+	}
+	job.RuntimeConfig = jobRuntimeConfig
+	return t.validatePipelineJobInputs(job)
 }
 
 // Converts modelJob to ScheduledWorkflow.
@@ -129,6 +147,8 @@ func (t *V2Spec) ScheduledWorkflow(modelJob *model.Job) (*scheduledworkflow.Sche
 			DefaultRunAsUser:     t.templateOptions.DefaultRunAsUser,
 			DefaultRunAsGroup:    t.templateOptions.DefaultRunAsGroup,
 			DefaultRunAsNonRoot:  t.templateOptions.DefaultRunAsNonRoot,
+			DefaultHostUsers:     t.templateOptions.DefaultHostUsers,
+			TokenReviewAudience:  common.GetTokenReviewAudience(),
 		}
 		obj, err = argocompiler.Compile(job, kubernetesSpec, opts)
 	}
@@ -146,9 +166,7 @@ func (t *V2Spec) ScheduledWorkflow(modelJob *model.Job) (*scheduledworkflow.Sche
 	if modelJob.Namespace != "" {
 		executionSpec.SetExecutionNamespace(modelJob.Namespace)
 	}
-	if executionSpec.ServiceAccount() == "" {
-		setDefaultServiceAccount(executionSpec, modelJob.ServiceAccount)
-	}
+	setDefaultServiceAccount(executionSpec, modelJob.ServiceAccount)
 	// Disable istio sidecar injection if not specified
 	executionSpec.SetAnnotationsToAllTemplatesIfKeyNotExist(util.AnnotationKeyIstioSidecarInject, util.AnnotationValueIstioSidecarInjectDisabled)
 	parameters, err := StringMapToCRDParameters(string(modelJob.RuntimeConfig.Parameters))
@@ -323,7 +341,7 @@ func (t *V2Spec) RunWorkflow(modelRun *model.Run, options RunWorkflowOptions) (u
 	}
 	job.RuntimeConfig = jobRuntimeConfig
 
-	// Format parameters to expand macros like [[CurrentTime]], [[RunUUID]], [[ScheduledTime]], [[Index]] (V1 forward compatibility).
+	// Format parameters to expand macros like [[CurrentTime]], [[RunUUID]], [[ScheduledTime]], [[Index]].
 	// Uses NewSWFParameterFormatter to support all macros. For standalone runs, [[ScheduledTime]] and [[Index]] remain unformatted
 
 	if job.RuntimeConfig != nil && len(job.RuntimeConfig.GetParameterValues()) > 0 {
@@ -332,25 +350,18 @@ func (t *V2Spec) RunWorkflow(modelRun *model.Run, options RunWorkflowOptions) (u
 		if modelRun.ScheduledAtInSec > 0 {
 			scheduledEpoch = modelRun.ScheduledAtInSec
 		}
+		index := int64(-1)
+		if options.RecurringRunIndex != nil {
+			index = *options.RecurringRunIndex
+		}
 		formatter := util.NewSWFParameterFormatter(
 			options.RunID,
 			scheduledEpoch,
 			options.RunAt,
-			-1,
+			index,
 		)
-		// Convert structpb.Value to strings, format, convert back
-		paramValues := job.RuntimeConfig.GetParameterValues()
-		stringParams := make(map[string]string)
-		for key, val := range paramValues {
-			if strVal := val.GetStringValue(); strVal != "" {
-				stringParams[key] = strVal
-			}
-		}
-		// Format the string parameters
-		formattedParams := formatter.FormatWorkflowParameters(stringParams)
-		// Convert formatted strings back to structpb.Value
-		for key, formattedVal := range formattedParams {
-			paramValues[key] = structpb.NewStringValue(formattedVal)
+		for _, value := range job.RuntimeConfig.GetParameterValues() {
+			formatParameterMacros(value, formatter)
 		}
 	}
 	if err = t.validatePipelineJobInputs(job); err != nil {
@@ -373,6 +384,8 @@ func (t *V2Spec) RunWorkflow(modelRun *model.Run, options RunWorkflowOptions) (u
 			DefaultRunAsUser:     t.templateOptions.DefaultRunAsUser,
 			DefaultRunAsGroup:    t.templateOptions.DefaultRunAsGroup,
 			DefaultRunAsNonRoot:  t.templateOptions.DefaultRunAsNonRoot,
+			DefaultHostUsers:     t.templateOptions.DefaultHostUsers,
+			TokenReviewAudience:  common.GetTokenReviewAudience(),
 		}
 		obj, err = argocompiler.Compile(job, kubernetesSpec, opts)
 	}
@@ -511,4 +524,41 @@ func (t *V2Spec) validatePipelineJobInputs(job *pipelinespec.PipelineJob) error 
 	}
 
 	return nil
+}
+
+// modelPluginsInputToCRD converts the JSON-encoded plugins_input string from
+// the model layer into the map[string]apiextensionsv1.JSON representation
+// used by the ScheduledWorkflow CRD spec.
+func modelPluginsInputToCRD(lt *model.LargeText) (map[string]apiextensionsv1.JSON, error) {
+	if lt == nil || *lt == "" {
+		return nil, nil
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(*lt), &raw); err != nil {
+		return nil, fmt.Errorf("invalid plugins_input JSON: %w", err)
+	}
+	result := make(map[string]apiextensionsv1.JSON, len(raw))
+	for k, v := range raw {
+		result[k] = apiextensionsv1.JSON{Raw: v}
+	}
+	return result, nil
+}
+
+// Format nested values as well as strings, matching embedded schedule expansion.
+func formatParameterMacros(value *structpb.Value, formatter *util.ParameterFormatter) {
+	if value == nil {
+		return
+	}
+	switch kind := value.Kind.(type) {
+	case *structpb.Value_StringValue:
+		kind.StringValue = formatter.Format(kind.StringValue)
+	case *structpb.Value_ListValue:
+		for _, item := range kind.ListValue.Values {
+			formatParameterMacros(item, formatter)
+		}
+	case *structpb.Value_StructValue:
+		for _, item := range kind.StructValue.Fields {
+			formatParameterMacros(item, formatter)
+		}
+	}
 }

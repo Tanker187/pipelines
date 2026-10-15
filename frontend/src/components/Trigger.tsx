@@ -135,7 +135,7 @@ export default class Trigger extends React.Component<TriggerProps, TriggerState>
     this._updateTrigger();
   }
 
-  public render(): JSX.Element {
+  public render(): React.JSX.Element {
     const {
       cron,
       editCron,
@@ -327,11 +327,13 @@ export default class Trigger extends React.Component<TriggerProps, TriggerState>
               width={95}
               variant='outlined'
             >
-              {Object.keys(PeriodicInterval).map((interval, i) => (
-                <MenuItem key={i} value={PeriodicInterval[interval]}>
-                  {PeriodicInterval[interval] + (type === TriggerType.INTERVALED ? 's' : '')}
-                </MenuItem>
-              ))}
+              {(Object.keys(PeriodicInterval) as Array<keyof typeof PeriodicInterval>).map(
+                (interval, i) => (
+                  <MenuItem key={i} value={PeriodicInterval[interval]}>
+                    {PeriodicInterval[interval] + (type === TriggerType.INTERVALED ? 's' : '')}
+                  </MenuItem>
+                ),
+              )}
             </Input>
           </span>
         </div>

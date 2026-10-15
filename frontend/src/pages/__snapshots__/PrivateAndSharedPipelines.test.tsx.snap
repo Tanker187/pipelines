@@ -13,7 +13,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
         >
           <div
             class="indicator_fp4eggn"
-            style="left: -5px; width: 5px; display: block;"
+            style="left: -2.5px; width: 5px; display: block;"
           />
           <span
             style="display: inline-block; min-width: 20px; width: 20px;"
@@ -53,9 +53,11 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
           <div
             class="pageOverflowHidden_f15djeb2"
           >
-            <div>
+            <div
+              style="display: flex; align-items: center; gap: 8px;"
+            >
               <div
-                class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-1u3bzj6-MuiFormControl-root-MuiTextField-root"
+                class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-175nhip-MuiFormControl-root-MuiTextField-root"
                 spellcheck="false"
                 style="height: 48px; max-width: 100%; width: 100%;"
               >
@@ -107,6 +109,35 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                   </fieldset>
                 </div>
               </div>
+              <div
+                style="flex-shrink: 0;"
+              >
+                <button
+                  aria-expanded="false"
+                  aria-haspopup="menu"
+                  aria-label="More actions"
+                  class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-78trlr-MuiButtonBase-root-MuiIconButton-root"
+                  data-mui-internal-clone-element="true"
+                  id="pipeline-more-actions"
+                  tabindex="0"
+                  type="button"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-i4bv87-MuiSvgIcon-root"
+                    data-testid="MoreVertIcon"
+                    focusable="false"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+                    />
+                  </svg>
+                  <span
+                    class="MuiTouchRipple-root css-8je8zh-MuiTouchRipple-root"
+                  />
+                </button>
+              </div>
             </div>
             <div
               class="header_f15jqnss"
@@ -116,6 +147,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
               >
                 <span
                   class="MuiButtonBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium PrivateSwitchBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium css-p6iyue-MuiButtonBase-root-MuiSwitchBase-root-MuiCheckbox-root"
+                  data-testid="select-all-checkbox"
                 >
                   <input
                     class="PrivateSwitchBase-input css-1p3z7et-MuiSwitchBase-root"
@@ -279,6 +311,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                     <a
                       aria-label="Name: mock-pipeline-name"
                       class="link_f3dwag7"
+                      data-discover="true"
                       data-mui-internal-clone-element="true"
                       href="/pipelines/details/run-pipeline-id"
                     >
@@ -367,6 +400,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                     <a
                       aria-label="Name: mock-pipeline-name"
                       class="link_f3dwag7"
+                      data-discover="true"
                       data-mui-internal-clone-element="true"
                       href="/pipelines/details/run-pipeline-id"
                     >
@@ -405,12 +439,12 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                   class="MuiInputBase-root MuiInput-root MuiInputBase-colorPrimary MuiInputBase-formControl css-1aa5qj0-MuiInputBase-root-MuiInput-root"
                 >
                   <div
-                    aria-controls="_r_7_"
+                    aria-controls="_r_8_"
                     aria-expanded="false"
                     aria-haspopup="listbox"
-                    aria-labelledby="_r_6_"
+                    aria-labelledby="_r_7_"
                     class="MuiSelect-select MuiSelect-standard MuiInputBase-input MuiInput-input css-1rxz5jq-MuiSelect-select-MuiInputBase-input-MuiInput-input"
-                    id="_r_6_"
+                    id="_r_7_"
                     role="combobox"
                     tabindex="0"
                   >
@@ -437,7 +471,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                 </div>
               </div>
               <button
+                aria-label="Previous page"
                 class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+                data-testid="prev-page-btn"
                 disabled=""
                 tabindex="-1"
                 type="button"
@@ -455,7 +491,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                 </svg>
               </button>
               <button
+                aria-label="Next page"
                 class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+                data-testid="next-page-btn"
                 disabled=""
                 tabindex="-1"
                 type="button"
@@ -487,7 +525,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
       >
         <div
           class="indicator_fp4eggn"
-          style="left: -5px; width: 5px; display: block;"
+          style="left: -2.5px; width: 5px; display: block;"
         />
         <span
           style="display: inline-block; min-width: 20px; width: 20px;"
@@ -527,9 +565,11 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
         <div
           class="pageOverflowHidden_f15djeb2"
         >
-          <div>
+          <div
+            style="display: flex; align-items: center; gap: 8px;"
+          >
             <div
-              class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-1u3bzj6-MuiFormControl-root-MuiTextField-root"
+              class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-175nhip-MuiFormControl-root-MuiTextField-root"
               spellcheck="false"
               style="height: 48px; max-width: 100%; width: 100%;"
             >
@@ -581,6 +621,35 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                 </fieldset>
               </div>
             </div>
+            <div
+              style="flex-shrink: 0;"
+            >
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                aria-label="More actions"
+                class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-78trlr-MuiButtonBase-root-MuiIconButton-root"
+                data-mui-internal-clone-element="true"
+                id="pipeline-more-actions"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-i4bv87-MuiSvgIcon-root"
+                  data-testid="MoreVertIcon"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+                  />
+                </svg>
+                <span
+                  class="MuiTouchRipple-root css-8je8zh-MuiTouchRipple-root"
+                />
+              </button>
+            </div>
           </div>
           <div
             class="header_f15jqnss"
@@ -590,6 +659,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
             >
               <span
                 class="MuiButtonBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium PrivateSwitchBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium css-p6iyue-MuiButtonBase-root-MuiSwitchBase-root-MuiCheckbox-root"
+                data-testid="select-all-checkbox"
               >
                 <input
                   class="PrivateSwitchBase-input css-1p3z7et-MuiSwitchBase-root"
@@ -753,6 +823,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                   <a
                     aria-label="Name: mock-pipeline-name"
                     class="link_f3dwag7"
+                    data-discover="true"
                     data-mui-internal-clone-element="true"
                     href="/pipelines/details/run-pipeline-id"
                   >
@@ -841,6 +912,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                   <a
                     aria-label="Name: mock-pipeline-name"
                     class="link_f3dwag7"
+                    data-discover="true"
                     data-mui-internal-clone-element="true"
                     href="/pipelines/details/run-pipeline-id"
                   >
@@ -879,12 +951,12 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
                 class="MuiInputBase-root MuiInput-root MuiInputBase-colorPrimary MuiInputBase-formControl css-1aa5qj0-MuiInputBase-root-MuiInput-root"
               >
                 <div
-                  aria-controls="_r_7_"
+                  aria-controls="_r_8_"
                   aria-expanded="false"
                   aria-haspopup="listbox"
-                  aria-labelledby="_r_6_"
+                  aria-labelledby="_r_7_"
                   class="MuiSelect-select MuiSelect-standard MuiInputBase-input MuiInput-input css-1rxz5jq-MuiSelect-select-MuiInputBase-input-MuiInput-input"
-                  id="_r_6_"
+                  id="_r_7_"
                   role="combobox"
                   tabindex="0"
                 >
@@ -911,7 +983,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
               </div>
             </div>
             <button
+              aria-label="Previous page"
               class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+              data-testid="prev-page-btn"
               disabled=""
               tabindex="-1"
               type="button"
@@ -929,7 +1003,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in multi user mode 1`]
               </svg>
             </button>
             <button
+              aria-label="Next page"
               class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+              data-testid="next-page-btn"
               disabled=""
               tabindex="-1"
               type="button"
@@ -1016,9 +1092,11 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
         <div
           class="pageOverflowHidden_f15djeb2"
         >
-          <div>
+          <div
+            style="display: flex; align-items: center; gap: 8px;"
+          >
             <div
-              class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-1u3bzj6-MuiFormControl-root-MuiTextField-root"
+              class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-175nhip-MuiFormControl-root-MuiTextField-root"
               spellcheck="false"
               style="height: 48px; max-width: 100%; width: 100%;"
             >
@@ -1070,6 +1148,35 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
                 </fieldset>
               </div>
             </div>
+            <div
+              style="flex-shrink: 0;"
+            >
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                aria-label="More actions"
+                class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-78trlr-MuiButtonBase-root-MuiIconButton-root"
+                data-mui-internal-clone-element="true"
+                id="pipeline-more-actions"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-i4bv87-MuiSvgIcon-root"
+                  data-testid="MoreVertIcon"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+                  />
+                </svg>
+                <span
+                  class="MuiTouchRipple-root css-8je8zh-MuiTouchRipple-root"
+                />
+              </button>
+            </div>
           </div>
           <div
             class="header_f15jqnss"
@@ -1079,6 +1186,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
             >
               <span
                 class="MuiButtonBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium PrivateSwitchBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium css-p6iyue-MuiButtonBase-root-MuiSwitchBase-root-MuiCheckbox-root"
+                data-testid="select-all-checkbox"
               >
                 <input
                   class="PrivateSwitchBase-input css-1p3z7et-MuiSwitchBase-root"
@@ -1242,6 +1350,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
                   <a
                     aria-label="Name: mock-pipeline-name"
                     class="link_f3dwag7"
+                    data-discover="true"
                     data-mui-internal-clone-element="true"
                     href="/pipelines/details/run-pipeline-id"
                   >
@@ -1330,6 +1439,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
                   <a
                     aria-label="Name: mock-pipeline-name"
                     class="link_f3dwag7"
+                    data-discover="true"
                     data-mui-internal-clone-element="true"
                     href="/pipelines/details/run-pipeline-id"
                   >
@@ -1368,12 +1478,12 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
                 class="MuiInputBase-root MuiInput-root MuiInputBase-colorPrimary MuiInputBase-formControl css-1aa5qj0-MuiInputBase-root-MuiInput-root"
               >
                 <div
-                  aria-controls="_r_f_"
+                  aria-controls="_r_h_"
                   aria-expanded="false"
                   aria-haspopup="listbox"
-                  aria-labelledby="_r_e_"
+                  aria-labelledby="_r_g_"
                   class="MuiSelect-select MuiSelect-standard MuiInputBase-input MuiInput-input css-1rxz5jq-MuiSelect-select-MuiInputBase-input-MuiInput-input"
-                  id="_r_e_"
+                  id="_r_g_"
                   role="combobox"
                   tabindex="0"
                 >
@@ -1400,7 +1510,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
               </div>
             </div>
             <button
+              aria-label="Previous page"
               class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+              data-testid="prev-page-btn"
               disabled=""
               tabindex="-1"
               type="button"
@@ -1418,7 +1530,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
               </svg>
             </button>
             <button
+              aria-label="Next page"
               class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+              data-testid="next-page-btn"
               disabled=""
               tabindex="-1"
               type="button"
@@ -1447,9 +1561,11 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
       <div
         class="pageOverflowHidden_f15djeb2"
       >
-        <div>
+        <div
+          style="display: flex; align-items: center; gap: 8px;"
+        >
           <div
-            class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-1u3bzj6-MuiFormControl-root-MuiTextField-root"
+            class="MuiFormControl-root MuiTextField-root filterBox_frxzdj2 css-175nhip-MuiFormControl-root-MuiTextField-root"
             spellcheck="false"
             style="height: 48px; max-width: 100%; width: 100%;"
           >
@@ -1501,6 +1617,35 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
               </fieldset>
             </div>
           </div>
+          <div
+            style="flex-shrink: 0;"
+          >
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              aria-label="More actions"
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-78trlr-MuiButtonBase-root-MuiIconButton-root"
+              data-mui-internal-clone-element="true"
+              id="pipeline-more-actions"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-i4bv87-MuiSvgIcon-root"
+                data-testid="MoreVertIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+                />
+              </svg>
+              <span
+                class="MuiTouchRipple-root css-8je8zh-MuiTouchRipple-root"
+              />
+            </button>
+          </div>
         </div>
         <div
           class="header_f15jqnss"
@@ -1510,6 +1655,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
           >
             <span
               class="MuiButtonBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium PrivateSwitchBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeMedium css-p6iyue-MuiButtonBase-root-MuiSwitchBase-root-MuiCheckbox-root"
+              data-testid="select-all-checkbox"
             >
               <input
                 class="PrivateSwitchBase-input css-1p3z7et-MuiSwitchBase-root"
@@ -1673,6 +1819,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
                 <a
                   aria-label="Name: mock-pipeline-name"
                   class="link_f3dwag7"
+                  data-discover="true"
                   data-mui-internal-clone-element="true"
                   href="/pipelines/details/run-pipeline-id"
                 >
@@ -1761,6 +1908,7 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
                 <a
                   aria-label="Name: mock-pipeline-name"
                   class="link_f3dwag7"
+                  data-discover="true"
                   data-mui-internal-clone-element="true"
                   href="/pipelines/details/run-pipeline-id"
                 >
@@ -1799,12 +1947,12 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
               class="MuiInputBase-root MuiInput-root MuiInputBase-colorPrimary MuiInputBase-formControl css-1aa5qj0-MuiInputBase-root-MuiInput-root"
             >
               <div
-                aria-controls="_r_f_"
+                aria-controls="_r_h_"
                 aria-expanded="false"
                 aria-haspopup="listbox"
-                aria-labelledby="_r_e_"
+                aria-labelledby="_r_g_"
                 class="MuiSelect-select MuiSelect-standard MuiInputBase-input MuiInput-input css-1rxz5jq-MuiSelect-select-MuiInputBase-input-MuiInput-input"
-                id="_r_e_"
+                id="_r_g_"
                 role="combobox"
                 tabindex="0"
               >
@@ -1831,7 +1979,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
             </div>
           </div>
           <button
+            aria-label="Previous page"
             class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+            data-testid="prev-page-btn"
             disabled=""
             tabindex="-1"
             type="button"
@@ -1849,7 +1999,9 @@ exports[`PrivateAndSharedPipelines > it renders correctly in single user mode 1`
             </svg>
           </button>
           <button
+            aria-label="Next page"
             class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeLarge css-mf1cb5-MuiButtonBase-root-MuiIconButton-root"
+            data-testid="next-page-btn"
             disabled=""
             tabindex="-1"
             type="button"

@@ -16,6 +16,7 @@
 
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { CircularProgress } from '@mui/material';
 import Buttons, { ButtonKeys } from 'src/lib/Buttons';
 import { queryKeys } from 'src/hooks/queryKeys';
 import DetailsTable from 'src/components/DetailsTable';
@@ -27,16 +28,17 @@ import { RoutePage, RouteParams } from 'src/components/Router';
 import { Breadcrumb, ToolbarProps } from 'src/components/Toolbar';
 import { classes } from 'typestyle';
 import { commonCss, padding } from 'src/Css';
-import { KeyValue } from 'src/lib/StaticGraphParser';
+import { KeyValue } from 'src/lib/DetailsTableTypes';
 import { formatDateString, enabledDisplayStringV2, errorToMessage } from 'src/lib/Utils';
 import { triggerDisplayString } from 'src/lib/TriggerUtils';
 
 export function RecurringRunDetailsV2FC(props: PageProps) {
   const { updateBanner, updateToolbar } = props;
 
-  const recurringRunId = props.match.params[RouteParams.recurringRunId];
+  const recurringRunId = props.params[RouteParams.recurringRunId] ?? '';
 
   const {
+    isLoading: isRecurringRunLoading,
     data: recurringRun,
     error: getRecurringRunError,
     refetch: refetchRecurringRun,
@@ -74,6 +76,36 @@ export function RecurringRunDetailsV2FC(props: PageProps) {
     if (experimentId) {
       await refetchExperiment();
     }
+  };
+
+  const deleteCallback = (_: string[], success: boolean) => {
+    if (success) {
+      const breadcrumbs = props.toolbarProps.breadcrumbs;
+      const previousPage = breadcrumbs.length
+        ? breadcrumbs[breadcrumbs.length - 1].href
+        : RoutePage.EXPERIMENTS;
+      props.navigate(previousPage);
+    }
+  };
+
+  const getInitialToolbarState = (): ToolbarProps => {
+    const buttons = new Buttons(props, refreshRecurringRun);
+    return {
+      actions: buttons
+        .cloneRecurringRun(() => (recurringRun ? [recurringRun.recurring_run_id!] : []), true)
+        .refresh(refreshRecurringRun)
+        .enableRecurringRun(() => (recurringRun ? recurringRun.recurring_run_id! : ''))
+        .disableRecurringRun(() => (recurringRun ? recurringRun.recurring_run_id! : ''))
+        .delete(
+          () => (recurringRun ? [recurringRun.recurring_run_id!] : []),
+          'recurring run config',
+          deleteCallback,
+          true /* useCurrentResource */,
+        )
+        .getToolbarActionMap(),
+      breadcrumbs: [],
+      pageTitle: '',
+    };
   };
 
   useEffect(() => {
@@ -137,35 +169,9 @@ export function RecurringRunDetailsV2FC(props: PageProps) {
     };
   }, [getRecurringRunError, getExperimentError, recurringRunId, updateBanner]);
 
-  const deleteCallback = (_: string[], success: boolean) => {
-    if (success) {
-      const breadcrumbs = props.toolbarProps.breadcrumbs;
-      const previousPage = breadcrumbs.length
-        ? breadcrumbs[breadcrumbs.length - 1].href
-        : RoutePage.EXPERIMENTS;
-      props.history.push(previousPage);
-    }
-  };
-
-  const getInitialToolbarState = (): ToolbarProps => {
-    const buttons = new Buttons(props, refreshRecurringRun);
-    return {
-      actions: buttons
-        .cloneRecurringRun(() => (recurringRun ? [recurringRun.recurring_run_id!] : []), true)
-        .refresh(refreshRecurringRun)
-        .enableRecurringRun(() => (recurringRun ? recurringRun.recurring_run_id! : ''))
-        .disableRecurringRun(() => (recurringRun ? recurringRun.recurring_run_id! : ''))
-        .delete(
-          () => (recurringRun ? [recurringRun.recurring_run_id!] : []),
-          'recurring run config',
-          deleteCallback,
-          true /* useCurrentResource */,
-        )
-        .getToolbarActionMap(),
-      breadcrumbs: [],
-      pageTitle: '',
-    };
-  };
+  if (isRecurringRunLoading) {
+    return <CircularProgress />;
+  }
 
   return (
     <div className={classes(commonCss.page, padding(20, 'lr'))}>
@@ -227,13 +233,13 @@ function getRunTriggers(recurringRun: V2beta1RecurringRun): Array<KeyValue<strin
 }
 
 function getRunParameters(recurringRun: V2beta1RecurringRun): Array<KeyValue<string>> {
-  let parameters: Array<KeyValue<string>> = [];
-
-  parameters = Object.entries(recurringRun.runtime_config?.parameters || []).map(([key, value]) => {
-    const displayValue =
-      value == null ? '' : typeof value === 'string' ? value : JSON.stringify(value);
-    return [key || '', displayValue];
-  });
+  const parameters = Object.entries(recurringRun.runtime_config?.parameters || []).map(
+    ([key, value]) => {
+      const displayValue =
+        value == null ? '' : typeof value === 'string' ? value : JSON.stringify(value);
+      return [key || '', displayValue];
+    },
+  );
 
   return parameters;
 }

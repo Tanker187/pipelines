@@ -32,8 +32,7 @@ describe('RecurringRunDetailsV2FC', () => {
   const updateDialogSpy = vi.fn();
   const updateSnackbarSpy = vi.fn();
   const updateToolbarSpy = vi.fn();
-  const historyPushSpy = vi.fn();
-  const historyReplaceSpy = vi.fn();
+  const navigateSpy = vi.fn();
   const getRecurringRunSpy = vi.spyOn(Apis.recurringRunServiceApi, 'getRecurringRun');
   const deleteRecurringRunSpy = vi.spyOn(Apis.recurringRunServiceApi, 'deleteRecurringRun');
   const enableRecurringRunSpy = vi.spyOn(Apis.recurringRunServiceApi, 'enableRecurringRun');
@@ -46,14 +45,9 @@ describe('RecurringRunDetailsV2FC', () => {
 
   function generateProps(): PageProps {
     return {
-      history: { push: historyPushSpy, replace: historyReplaceSpy } as any,
+      navigate: navigateSpy,
       location: '' as any,
-      match: {
-        params: { [RouteParams.recurringRunId]: fullTestV2RecurringRun.recurring_run_id },
-        isExact: true,
-        path: '',
-        url: '',
-      },
+      params: { [RouteParams.recurringRunId]: fullTestV2RecurringRun.recurring_run_id },
       toolbarProps: { actions: {}, breadcrumbs: [], pageTitle: '' },
       updateBanner: updateBannerSpy,
       updateDialog: updateDialogSpy,
@@ -90,13 +84,16 @@ describe('RecurringRunDetailsV2FC', () => {
       display_name: 'test_pipeline_version',
       pipeline_id: 'test_pipeline_id',
       pipeline_version_id: 'test_pipeline_version_id',
-      pipeline_spec: JsYaml.safeLoad(v2YamlTemplateString),
+      pipeline_spec: JsYaml.load(v2YamlTemplateString),
     };
 
     vi.clearAllMocks();
     // mock both v2_alpha and functional feature keys are enable.
     vi.spyOn(features, 'isFeatureEnabled').mockReturnValue(true);
 
+    // mockReset clears the mockOnce queue that vi.clearAllMocks leaves behind,
+    // preventing unconsumed one-time mocks from leaking between tests.
+    getRecurringRunSpy.mockReset();
     getRecurringRunSpy.mockImplementation(() => fullTestV2RecurringRun);
     getPipelineVersionSpy.mockImplementation(() => testPipelineVersion);
 
@@ -112,6 +109,28 @@ describe('RecurringRunDetailsV2FC', () => {
     });
   });
 
+  it('shows a loading spinner while the recurring run is being fetched', async () => {
+    // First call from the Router succeeds so V2FC can mount;
+    // second call from V2FC hangs to show the loading spinner.
+    getRecurringRunSpy
+      .mockImplementationOnce(() => fullTestV2RecurringRun)
+      .mockReturnValueOnce(new Promise(() => {}));
+
+    render(
+      <CommonTestWrapper>
+        <RecurringRunDetailsRouter {...generateProps()} />
+      </CommonTestWrapper>,
+    );
+
+    // Wait for Router to resolve past its own loading state before
+    // asserting V2FC's spinner — the Router also renders a CircularProgress
+    // while loading, so we must confirm it has finished first.
+    await waitFor(() => {
+      expect(screen.queryByText('Currently loading recurring run information')).toBeNull();
+    });
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
   it('renders a recurring run with periodic schedule', async () => {
     render(
       <CommonTestWrapper>
@@ -120,10 +139,9 @@ describe('RecurringRunDetailsV2FC', () => {
     );
     await waitFor(() => {
       expect(getRecurringRunSpy).toHaveBeenCalled();
-      expect(getPipelineVersionSpy).toHaveBeenCalled();
+      expect(screen.getByText('Enabled')).toBeInTheDocument();
     });
-
-    expect(await screen.findByText('Enabled')).toBeInTheDocument();
+    expect(getPipelineVersionSpy).not.toHaveBeenCalled();
     screen.getByText('Yes');
     screen.getByText('Trigger');
     screen.getByText('Every 1 hours');
@@ -156,10 +174,9 @@ describe('RecurringRunDetailsV2FC', () => {
     );
     await waitFor(() => {
       expect(getRecurringRunSpy).toHaveBeenCalled();
-      expect(getPipelineVersionSpy).toHaveBeenCalled();
+      expect(screen.getByText('Enabled')).toBeInTheDocument();
     });
-
-    expect(await screen.findByText('Enabled')).toBeInTheDocument();
+    expect(getPipelineVersionSpy).not.toHaveBeenCalled();
     screen.getByText('Yes');
     screen.getByText('Trigger');
     screen.getByText('* * * 0 0 !');
@@ -170,7 +187,7 @@ describe('RecurringRunDetailsV2FC', () => {
   });
 
   it('loads the recurring run given its id in query params', async () => {
-    // The run id is in the router match object, defined inside generateProps
+    // The run id is in the route params, defined inside generateProps
     render(
       <CommonTestWrapper>
         <RecurringRunDetailsRouter {...generateProps()} />
@@ -186,7 +203,7 @@ describe('RecurringRunDetailsV2FC', () => {
 
   it('shows All runs -> run name when there is no experiment', async () => {
     fullTestV2RecurringRun.experiment_id = undefined;
-    // The run id is in the router match object, defined inside generateProps
+    // The run id is in the route params, defined inside generateProps
     render(
       <CommonTestWrapper>
         <RecurringRunDetailsRouter {...generateProps()} />

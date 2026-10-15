@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-// import './CSSReset';
 import 'src/build/tailwind.output.css';
 import '@xyflow/react/dist/style.css';
-import { StrictMode } from 'react';
+import React, { StrictMode } from 'react';
 import { ThemeProvider, StyledEngineProvider } from '@mui/material/styles';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HashRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router';
 import { cssRule } from 'typestyle';
+import { NavigationErrorBoundary } from './atoms/NavigationErrorBoundary';
 import Router from './components/Router';
 import { fonts, theme } from './Css';
 import { initFeatures } from './features';
@@ -60,7 +60,9 @@ const app = (
         <BuildInfoProvider>
           <GkeMetadataProvider>
             <HashRouter>
-              <Router />
+              <NavigationErrorBoundary>
+                <Router />
+              </NavigationErrorBoundary>
             </HashRouter>
           </GkeMetadataProvider>
         </BuildInfoProvider>

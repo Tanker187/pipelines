@@ -22,7 +22,6 @@ import PagedTable from './PagedTable';
 import ROCCurve from './ROCCurve';
 import TensorboardViewer from './Tensorboard';
 import { PlotType, ViewerConfig } from './Viewer';
-import VisualizationCreator from './VisualizationCreator';
 
 export const componentMap: Record<PlotType, ComponentType<any>> = {
   [PlotType.CONFUSION_MATRIX]: ConfusionMatrix,
@@ -30,7 +29,6 @@ export const componentMap: Record<PlotType, ComponentType<any>> = {
   [PlotType.ROC]: ROCCurve,
   [PlotType.TABLE]: PagedTable,
   [PlotType.TENSORBOARD]: TensorboardViewer,
-  [PlotType.VISUALIZATION_CREATOR]: VisualizationCreator,
   [PlotType.WEB_APP]: HTMLViewer,
 };
 
@@ -40,7 +38,7 @@ interface ViewerContainerProps {
 }
 
 class ViewerContainer extends React.Component<ViewerContainerProps> {
-  public render(): JSX.Element | null {
+  public render(): React.JSX.Element | null {
     const { configs, maxDimension } = this.props;
     if (!configs.length) {
       return null;
